@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- namespace-openshift-cluster-observability-operator.yaml
+- namespace-openshift-opentelemetry-operator.yaml
+- namespace-openshift-tempo-operator.yaml
+- operatorgroup-openshift-cluster-observability-operator-cluster-observability-operator.yaml
+- operatorgroup-openshift-opentelemetry-operator-opentelemetry-product.yaml
+- operatorgroup-openshift-tempo-operator-tempo-product.yaml
+- subscription-openshift-cluster-observability-operator-cluster-observability-operator.yaml
+- subscription-openshift-opentelemetry-operator-opentelemetry-product.yaml
+- subscription-openshift-tempo-operator-tempo-product.yaml

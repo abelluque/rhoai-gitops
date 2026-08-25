@@ -1,0 +1,22 @@
+# Source: platform-addons/templates/job-patch-gitops.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: patch-gitops-placement-script
+  namespace: openshift-gitops
+data:
+  patch.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    NS="openshift-gitops"
+    NAME="openshift-gitops"
+    echo "Waiting for ArgoCD/${NAME}..."
+    until oc get argocd "${NAME}" -n "${NS}" >/dev/null 2>&1; do sleep 10; done
+    oc patch argocd "${NAME}" -n "${NS}" --type merge -p '{
+      "spec": {
+        "nodePlacement": {
+          "nodeSelector": {"workload.rhoai.io/platform":"true"}
+        }
+      }
+    }'
+    echo "Patched ArgoCD nodePlacement"

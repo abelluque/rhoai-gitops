@@ -1,0 +1,14 @@
+# Source: openshift-ai/templates/odhdashboardconfig.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: apply-odh-dashboard-config
+  namespace: redhat-ods-applications
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: apply-odh-dashboard-config
+subjects:
+  - kind: ServiceAccount
+    name: apply-odh-dashboard-config
+    namespace: redhat-ods-applications

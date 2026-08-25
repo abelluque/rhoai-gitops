@@ -1,0 +1,15 @@
+# Source: platform-addons/templates/mysql.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: model-registry-mysql
+  namespace: rhoai-model-registries
+  labels:
+    app: model-registry-mysql
+spec:
+  selector:
+    app: model-registry-mysql
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql

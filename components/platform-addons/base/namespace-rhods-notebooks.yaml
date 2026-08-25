@@ -1,0 +1,9 @@
+# Source: platform-addons/templates/namespaces.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhods-notebooks
+  labels:
+    app.kubernetes.io/name: platform-addons
+    app.kubernetes.io/instance: platform-addons
+    app.kubernetes.io/managed-by: Helm

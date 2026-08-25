@@ -1,0 +1,18 @@
+# Source: openshift-ai/templates/job-patch-controller-resources.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: patch-controller-resources-monitoring
+  namespace: redhat-ods-monitoring
+  labels:
+    app.kubernetes.io/name: openshift-ai
+    app.kubernetes.io/instance: openshift-ai
+    app.kubernetes.io/version: "0.1.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: patch-controller-resources-monitoring
+subjects:
+  - kind: ServiceAccount
+    name: patch-controller-resources
+    namespace: redhat-ods-applications

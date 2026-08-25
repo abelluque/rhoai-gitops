@@ -1,0 +1,63 @@
+# Source: platform-addons/templates/mysql.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-registry-mysql
+  namespace: rhoai-model-registries
+  labels:
+    app: model-registry-mysql
+    app.kubernetes.io/name: platform-addons
+    app.kubernetes.io/instance: platform-addons
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: model-registry-mysql
+  template:
+    metadata:
+      labels:
+        app: model-registry-mysql
+    spec:
+      nodeSelector:
+        workload.rhoai.io/platform: "true"
+      containers:
+        - name: mysql
+          image: registry.redhat.io/rhel9/mysql-80:latest
+          env:
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: model-registry-mysql
+                  key: database-name
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: model-registry-mysql
+                  key: database-user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: model-registry-mysql
+                  key: database-password
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: model-registry-mysql
+                  key: database-root-password
+          ports:
+            - containerPort: 3306
+              name: mysql
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: model-registry-mysql-data

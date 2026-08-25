@@ -1,0 +1,10 @@
+# Source: openshift-ai/templates/hardwareprofiles.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: apply-hardwareprofiles
+  namespace: redhat-ods-applications
+rules:
+  - apiGroups: ["infrastructure.opendatahub.io"]
+    resources: ["hardwareprofiles"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]

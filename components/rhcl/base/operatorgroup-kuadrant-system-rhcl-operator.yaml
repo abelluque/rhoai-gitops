@@ -1,0 +1,12 @@
+# Source: rhcl/charts/install-rhcl/templates/operatorgroups.yaml
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: rhcl-operator
+  namespace: kuadrant-system
+  labels:
+    app.kubernetes.io/name: install-rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  upgradeStrategy: Default

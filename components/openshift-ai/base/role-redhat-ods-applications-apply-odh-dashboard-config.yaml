@@ -1,0 +1,10 @@
+# Source: openshift-ai/templates/odhdashboardconfig.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: apply-odh-dashboard-config
+  namespace: redhat-ods-applications
+rules:
+  - apiGroups: ["opendatahub.io"]
+    resources: ["odhdashboardconfigs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]

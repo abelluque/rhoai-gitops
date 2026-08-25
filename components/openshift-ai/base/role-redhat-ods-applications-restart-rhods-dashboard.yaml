@@ -1,0 +1,10 @@
+# Source: openshift-ai/templates/job-restart-dashboard.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: restart-rhods-dashboard
+  namespace: redhat-ods-applications
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch"]

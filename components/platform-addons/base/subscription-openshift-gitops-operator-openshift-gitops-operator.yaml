@@ -1,0 +1,16 @@
+# Source: platform-addons/charts/install-platform-operators/templates/subscriptions.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: openshift-gitops-operator
+  namespace: openshift-gitops-operator
+  labels:
+    app.kubernetes.io/name: install-platform-operators
+    app.kubernetes.io/instance: platform-addons
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  channel: latest
+  installPlanApproval: Automatic
+  name: openshift-gitops-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- configmap-models-as-a-service-patch-tenant-telemetry-script.yaml
+- job-models-as-a-service-patch-tenant-telemetry.yaml
+- maasauthpolicy-models-as-a-service-free-models-access.yaml
+- maasmodelref-ai-models-granite-3-1-2b-instruct.yaml
+- maassubscription-models-as-a-service-free-models-subscription.yaml
+- role-models-as-a-service-patch-tenant-telemetry.yaml
+- rolebinding-models-as-a-service-patch-tenant-telemetry.yaml
+- serviceaccount-models-as-a-service-patch-tenant-telemetry.yaml

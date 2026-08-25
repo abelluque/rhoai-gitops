@@ -1,0 +1,42 @@
+# Source: maas-postgres/templates/job-maas-db-config.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-maas-db-config
+  namespace: redhat-ods-applications
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      serviceAccountName: create-maas-db-config
+      restartPolicy: Never
+      containers:
+        - name: create-maas-db-config
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/create-maas-db-config.sh"]
+          env:
+            - name: POSTGRES_NAMESPACE
+              value: "redhat-ods-applications"
+            - name: MAAS_DB_SECRET
+              value: "maas-db-config"
+            - name: MAAS_DB_CONFIG_MODE
+              value: "bundled"
+            - name: POSTGRES_SECRET
+              value: "postgres-creds"
+            - name: POSTGRES_SERVICE
+              value: "postgres"
+            - name: POSTGRES_PORT
+              value: "5432"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: create-maas-db-config-script
+            defaultMode: 493

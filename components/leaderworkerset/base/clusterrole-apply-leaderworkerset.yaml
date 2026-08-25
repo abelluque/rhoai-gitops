@@ -1,0 +1,9 @@
+# Source: leaderworkerset/templates/job-apply-leaderworkerset.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: apply-leaderworkerset
+rules:
+  - apiGroups: ["operator.openshift.io"]
+    resources: ["leaderworkersetoperators"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]

@@ -1,0 +1,9 @@
+# Source: openshift-ai/templates/cluster-monitoring-configmap.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |
+    enableUserWorkload: true

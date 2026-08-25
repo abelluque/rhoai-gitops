@@ -1,0 +1,14 @@
+# Source: maas-subscriptions/templates/maasmodelref.yaml
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: "granite-3-1-2b-instruct"
+  namespace: "ai-models"
+  labels:
+    migration.maas.opendatahub.io/from-tier: "free"
+  annotations:
+    migration.maas.opendatahub.io/original-tier: "free"
+spec:
+  modelRef:
+    kind: LLMInferenceService
+    name: "granite-3-1-2b-instruct"

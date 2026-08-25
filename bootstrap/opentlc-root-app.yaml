@@ -1,0 +1,31 @@
+# Apply once against the in-cluster OpenShift GitOps instance:
+#   oc apply -f bootstrap/opentlc-root-app.yaml
+# Then Argo CD syncs clusters/opentlc/apps (the app-of-apps).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rhoai-opentlc-root
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: rhoai-maas
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/abelluque/rhoai-gitops.git
+    targetRevision: main
+    path: clusters/opentlc/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 20s
+        factor: 2
+        maxDuration: 5m

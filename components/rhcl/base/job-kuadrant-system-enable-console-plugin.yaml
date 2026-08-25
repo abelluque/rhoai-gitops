@@ -1,0 +1,36 @@
+# Source: rhcl/templates/job-enable-console-plugin.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: enable-console-plugin
+  namespace: kuadrant-system
+  labels:
+    app.kubernetes.io/name: rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      serviceAccountName: enable-console-plugin
+      restartPolicy: Never
+      containers:
+        - name: enable-console-plugin
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/enable-console-plugin.sh"]
+          env:
+            - name: CONSOLE_PLUGIN
+              value: "kuadrant-console-plugin"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: rhcl-bootstrap-scripts
+            defaultMode: 493

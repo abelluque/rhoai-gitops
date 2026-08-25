@@ -1,0 +1,34 @@
+# Source: leaderworkerset/templates/job-apply-leaderworkerset.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apply-leaderworkerset
+  namespace: openshift-lws-operator
+data:
+  leaderworkerset.yaml: |
+    ---
+    apiVersion: operator.openshift.io/v1
+    kind: LeaderWorkerSetOperator
+    metadata:
+      name: cluster
+    spec:
+      logLevel: Normal
+      managementState: Managed
+      operatorLogLevel: Normal
+  apply-leaderworkerset.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    MANIFEST="/config/leaderworkerset.yaml"
+    
+    echo "Waiting for LeaderWorkerSetOperator API..."
+    while true; do
+      if output=$(oc apply -f "${MANIFEST}" 2>&1); then
+        echo "${output}"
+        break
+      fi
+      echo "${output}"
+      sleep 10
+    done
+    
+    echo "LeaderWorkerSetOperator applied"

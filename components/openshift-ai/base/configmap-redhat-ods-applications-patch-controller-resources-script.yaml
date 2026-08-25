@@ -1,0 +1,264 @@
+# Source: openshift-ai/templates/job-patch-controller-resources.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: patch-controller-resources-script
+  namespace: redhat-ods-applications
+  labels:
+    app.kubernetes.io/name: openshift-ai
+    app.kubernetes.io/instance: openshift-ai
+    app.kubernetes.io/version: "0.1.0"
+data:
+  patch-controller-resources.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    TARGET_NAMESPACE="${TARGET_NAMESPACE:?TARGET_NAMESPACE required}"
+    WORKLOAD_KIND="${WORKLOAD_KIND:-deployment}"
+    WORKLOAD_NAME="${WORKLOAD_NAME:?WORKLOAD_NAME required}"
+    CONTAINER_NAME="${CONTAINER_NAME:-manager}"
+    CSV_NAMESPACE="${CSV_NAMESPACE:-}"
+    CSV_NAME="${CSV_NAME:-}"
+    CSV_SUBSCRIPTION="${CSV_SUBSCRIPTION:-}"
+    OTEL_COLLECTOR_NAME="${OTEL_COLLECTOR_NAME:-}"
+    WAIT_TIMEOUT="${WAIT_TIMEOUT:-900}"
+    VERIFY_TIMEOUT="${VERIFY_TIMEOUT:-120}"
+    MEMORY_REQUEST="${CONTROLLER_MEMORY_REQUEST:?CONTROLLER_MEMORY_REQUEST required}"
+    MEMORY_LIMIT="${CONTROLLER_MEMORY_LIMIT:?CONTROLLER_MEMORY_LIMIT required}"
+    CPU_REQUEST="${CONTROLLER_CPU_REQUEST:?CONTROLLER_CPU_REQUEST required}"
+    CPU_LIMIT="${CONTROLLER_CPU_LIMIT:?CONTROLLER_CPU_LIMIT required}"
+    
+    WORKLOAD_KIND=$(echo "${WORKLOAD_KIND}" | tr '[:upper:]' '[:lower:]')
+    
+    case "${WORKLOAD_KIND}" in
+      deployment|statefulset) ;;
+      *)
+        echo "Error: unsupported WORKLOAD_KIND ${WORKLOAD_KIND} (expected deployment or statefulset)" >&2
+        exit 1
+        ;;
+    esac
+    
+    WORKLOAD_RESOURCE="${WORKLOAD_KIND}s"
+    
+    RESOURCES_JSON=$(jq -cn \
+      --arg mr "${MEMORY_REQUEST}" \
+      --arg ml "${MEMORY_LIMIT}" \
+      --arg cr "${CPU_REQUEST}" \
+      --arg cl "${CPU_LIMIT}" \
+      '{requests: {memory: $mr, cpu: $cr}, limits: {memory: $ml, cpu: $cl}}')
+    
+    resources_equal() {
+      local current="$1"
+      jq -e -n --argjson current "${current}" --argjson expected "${RESOURCES_JSON}" '$current == $expected' >/dev/null
+    }
+    
+    wait_for() {
+      local description="$1"
+      local check_cmd="$2"
+      local elapsed=0
+    
+      while ! eval "${check_cmd}" >/dev/null 2>&1; do
+        if [ "${elapsed}" -ge "${WAIT_TIMEOUT}" ]; then
+          echo "Timed out after ${WAIT_TIMEOUT}s waiting for ${description}" >&2
+          exit 1
+        fi
+        sleep 5
+        elapsed=$((elapsed + 5))
+      done
+    }
+    
+    resolve_container_index() {
+      local idx
+    
+      idx=$(oc get "${WORKLOAD_KIND}" "${WORKLOAD_NAME}" -n "${TARGET_NAMESPACE}" -o json | \
+        jq -r --arg name "${CONTAINER_NAME}" '
+          (.spec.template.spec.containers | map(.name) | index($name)) as $i |
+          if $i == null then empty else ($i | tostring) end')
+    
+      if [ -n "${idx}" ]; then
+        echo "${idx}"
+        return 0
+      fi
+    
+      if [ "$(oc get "${WORKLOAD_KIND}" "${WORKLOAD_NAME}" -n "${TARGET_NAMESPACE}" -o json | jq '.spec.template.spec.containers | length')" = "1" ]; then
+        echo "0"
+        return 0
+      fi
+    
+      echo "Error: container ${CONTAINER_NAME} not found in ${WORKLOAD_KIND}/${WORKLOAD_NAME}" >&2
+      exit 1
+    }
+    
+    resolve_csv() {
+      local current pinned="${CSV_NAME}"
+    
+      if [ -z "${CSV_NAMESPACE}" ]; then
+        return 1
+      fi
+    
+      if [ -n "${pinned}" ] && oc get csv "${pinned}" -n "${CSV_NAMESPACE}" >/dev/null 2>&1; then
+        echo "${pinned}"
+        return 0
+      fi
+    
+      if [ -n "${CSV_SUBSCRIPTION}" ]; then
+        current=$(oc get subscription "${CSV_SUBSCRIPTION}" -n "${CSV_NAMESPACE}" -o jsonpath='{.status.currentCSV}' 2>/dev/null || true)
+        if [ -n "${current}" ] && oc get csv "${current}" -n "${CSV_NAMESPACE}" >/dev/null 2>&1; then
+          echo "${current}"
+          return 0
+        fi
+      fi
+    
+      return 1
+    }
+    
+    resolve_csv_optional() {
+      if [ -z "${CSV_NAMESPACE}" ]; then
+        return 1
+      fi
+    
+      if RESOLVED_CSV=$(resolve_csv); then
+        echo "Using CSV ${RESOLVED_CSV} in ${CSV_NAMESPACE}"
+        CSV_NAME="${RESOLVED_CSV}"
+        return 0
+      fi
+    
+      echo "Note: CSV not found in ${CSV_NAMESPACE}; skipping CSV patch" >&2
+      return 1
+    }
+    
+    resolve_csv_container_index() {
+      oc get csv "${CSV_NAME}" -n "${CSV_NAMESPACE}" -o json | \
+        jq -r --arg deploy "${WORKLOAD_NAME}" --arg container "${CONTAINER_NAME}" '
+          .spec.install.spec.deployments
+          | map(select(.name == $deploy))
+          | .[0].spec.template.spec.containers
+          | map(.name)
+          | index($container) // empty'
+    }
+    
+    patch_csv_resources() {
+      if [ "${WORKLOAD_KIND}" != "deployment" ] || [ -z "${CSV_NAMESPACE}" ]; then
+        return 0
+      fi
+    
+      if ! resolve_csv_optional; then
+        return 0
+      fi
+    
+      DEPLOY_IDX=$(oc get csv "${CSV_NAME}" -n "${CSV_NAMESPACE}" -o json | \
+        jq -r --arg name "${WORKLOAD_NAME}" '
+          (.spec.install.spec.deployments | map(.name) | index($name)) as $i |
+          if $i == null then empty else ($i | tostring) end')
+    
+      if [ -z "${DEPLOY_IDX}" ]; then
+        echo "Note: ${WORKLOAD_NAME} not found in CSV ${CSV_NAME}; skipping CSV patch" >&2
+        return 0
+      fi
+    
+      CONTAINER_IDX=$(resolve_csv_container_index)
+      if [ -z "${CONTAINER_IDX}" ]; then
+        echo "Note: ${CONTAINER_NAME} not found in CSV ${CSV_NAME}/${WORKLOAD_NAME}; skipping CSV patch" >&2
+        return 0
+      fi
+    
+      CSV_CURRENT=$(oc get csv "${CSV_NAME}" -n "${CSV_NAMESPACE}" -o json | \
+        jq -c ".spec.install.spec.deployments[${DEPLOY_IDX}].spec.template.spec.containers[${CONTAINER_IDX}].resources // {}")
+    
+      if resources_equal "${CSV_CURRENT}"; then
+        echo "CSV resources already set"
+        return 0
+      fi
+    
+      echo "Patching CSV ${CSV_NAME} deployment ${WORKLOAD_NAME} container ${CONTAINER_NAME}..."
+      oc patch csv "${CSV_NAME}" -n "${CSV_NAMESPACE}" --type=json -p \
+        "[{\"op\":\"replace\",\"path\":\"/spec/install/spec/deployments/${DEPLOY_IDX}/spec/template/spec/containers/${CONTAINER_IDX}/resources\",\"value\":${RESOURCES_JSON}}]"
+    }
+    
+    patch_otel_collector_cr() {
+      local current
+    
+      if [ -z "${OTEL_COLLECTOR_NAME}" ]; then
+        return 0
+      fi
+    
+      wait_for "OpenTelemetryCollector ${OTEL_COLLECTOR_NAME}" \
+        "oc get opentelemetrycollector \"${OTEL_COLLECTOR_NAME}\" -n \"${TARGET_NAMESPACE}\""
+    
+      current=$(oc get opentelemetrycollector "${OTEL_COLLECTOR_NAME}" -n "${TARGET_NAMESPACE}" -o json | \
+        jq -c '.spec.resources // {}')
+    
+      if resources_equal "${current}"; then
+        echo "OpenTelemetryCollector ${OTEL_COLLECTOR_NAME} resources already set"
+        return 0
+      fi
+    
+      echo "Patching OpenTelemetryCollector ${OTEL_COLLECTOR_NAME} resources..."
+      oc patch opentelemetrycollector "${OTEL_COLLECTOR_NAME}" -n "${TARGET_NAMESPACE}" --type=json -p \
+        "[{\"op\":\"replace\",\"path\":\"/spec/resources\",\"value\":${RESOURCES_JSON}}]"
+    }
+    
+    workload_resources() {
+      local container_idx
+    
+      container_idx=$(resolve_container_index)
+      oc get "${WORKLOAD_KIND}" "${WORKLOAD_NAME}" -n "${TARGET_NAMESPACE}" -o json | \
+        jq -c ".spec.template.spec.containers[${container_idx}].resources // {}"
+    }
+    
+    patch_workload_resources() {
+      wait_for "${WORKLOAD_KIND}/${WORKLOAD_NAME} in ${TARGET_NAMESPACE}" \
+        "oc get ${WORKLOAD_KIND} \"${WORKLOAD_NAME}\" -n \"${TARGET_NAMESPACE}\""
+    
+      CONTAINER_IDX=$(resolve_container_index)
+      RESOLVED_CONTAINER=$(oc get "${WORKLOAD_KIND}" "${WORKLOAD_NAME}" -n "${TARGET_NAMESPACE}" -o json | \
+        jq -r ".spec.template.spec.containers[${CONTAINER_IDX}].name")
+    
+      CURRENT=$(workload_resources)
+    
+      if resources_equal "${CURRENT}"; then
+        echo "${WORKLOAD_KIND}/${WORKLOAD_NAME}/${RESOLVED_CONTAINER} resources already set"
+        return 0
+      fi
+    
+      echo "Patching ${WORKLOAD_KIND}/${WORKLOAD_NAME}/${RESOLVED_CONTAINER} resources (request memory=${MEMORY_REQUEST}, limit memory=${MEMORY_LIMIT})..."
+      oc patch "${WORKLOAD_KIND}" "${WORKLOAD_NAME}" -n "${TARGET_NAMESPACE}" --type=json -p \
+        "[{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/${CONTAINER_IDX}/resources\",\"value\":${RESOURCES_JSON}}]"
+    }
+    
+    verify_resources_stable() {
+      local elapsed=0
+      local stable_count=0
+      local required_stable=3
+    
+      while [ "${elapsed}" -lt "${VERIFY_TIMEOUT}" ]; do
+        CURRENT=$(workload_resources)
+        if resources_equal "${CURRENT}"; then
+          stable_count=$((stable_count + 1))
+          if [ "${stable_count}" -ge "${required_stable}" ]; then
+            echo "${WORKLOAD_KIND}/${WORKLOAD_NAME} resources stable"
+            return 0
+          fi
+          echo "${WORKLOAD_KIND}/${WORKLOAD_NAME} resources match (${stable_count}/${required_stable} stable checks)..."
+        else
+          stable_count=0
+          echo "Waiting for ${WORKLOAD_KIND}/${WORKLOAD_NAME} resources to stabilize (current=${CURRENT})..."
+          patch_otel_collector_cr || true
+          patch_csv_resources || true
+          patch_workload_resources || true
+        fi
+        sleep 5
+        elapsed=$((elapsed + 5))
+      done
+    
+      CURRENT=$(workload_resources)
+      echo "Error: ${WORKLOAD_KIND}/${WORKLOAD_NAME} resources not stable after ${VERIFY_TIMEOUT}s (current=${CURRENT})" >&2
+      exit 1
+    }
+    
+    patch_otel_collector_cr
+    patch_csv_resources
+    patch_workload_resources
+    verify_resources_stable
+    
+    echo "${WORKLOAD_KIND}/${WORKLOAD_NAME} resources patched"

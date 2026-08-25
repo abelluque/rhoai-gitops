@@ -1,0 +1,38 @@
+# Source: openshift-ai/templates/hardwareprofiles.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: apply-hardwareprofiles
+  namespace: redhat-ods-applications
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      serviceAccountName: apply-hardwareprofiles
+      restartPolicy: Never
+      containers:
+        - name: apply-hardwareprofiles
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/apply-hardwareprofiles.sh"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: config
+          configMap:
+            name: apply-hardwareprofiles
+        - name: scripts
+          configMap:
+            name: apply-hardwareprofiles
+            items:
+              - key: apply-hardwareprofiles.sh
+                path: apply-hardwareprofiles.sh
+            defaultMode: 493

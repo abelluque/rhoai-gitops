@@ -1,0 +1,37 @@
+# Source: openshift-ai/templates/job-patch-segment-key-config.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: patch-segment-key-config
+  namespace: redhat-ods-applications
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      serviceAccountName: patch-segment-key-config
+      restartPolicy: Never
+      containers:
+        - name: patch-segment-key-config
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/patch-segment-key-config.sh"]
+          env:
+            - name: ODS_NAMESPACE
+              value: redhat-ods-applications
+            - name: SEGMENT_KEY_CONFIGMAP
+              value: odh-segment-key-config
+            - name: SEGMENT_KEY_ENABLED
+              value: "false"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: patch-segment-key-config-script
+            defaultMode: 493

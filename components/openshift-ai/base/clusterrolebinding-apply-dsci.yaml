@@ -1,0 +1,13 @@
+# Source: openshift-ai/templates/job-apply-dsci.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: apply-dsci
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: apply-dsci
+subjects:
+  - kind: ServiceAccount
+    name: apply-dsci
+    namespace: redhat-ods-operator

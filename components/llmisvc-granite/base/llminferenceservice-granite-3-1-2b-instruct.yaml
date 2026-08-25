@@ -1,0 +1,51 @@
+# Source: llmisvc/templates/llminferenceservice.yaml
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  annotations:
+    openshift.io/display-name: Granite 3.1 2B Instruct (CPU lab)
+    opendatahub.io/model-type: "generative"
+    opendatahub.io/genai-use-case: "chat"
+    openshift.io/description: "Small Granite instruct model for OpenTLC lab MaaS validation (CPU only)."
+    opendatahub.io/hardware-profile-name: cpu-platform
+    opendatahub.io/hardware-profile-namespace: redhat-ods-applications
+  labels:
+    app.kubernetes.io/name: granite-3-1-2b-instruct
+    app.kubernetes.io/instance: llmisvc-granite
+    app.kubernetes.io/version: "3.3.1"
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/genai-asset: "true"
+  name: granite-3-1-2b-instruct
+spec:
+  model:
+    name: granite-3-1-2b-instruct
+    uri: hf://ibm-granite/granite-3.1-2b-instruct
+  replicas: 1
+  router:
+    gateway:
+      refs:
+        - name: maas-default-gateway
+          namespace: openshift-ingress
+    route: {}
+    scheduler: {}
+  template:
+    containers:
+      - name: main
+        image: registry.redhat.io/rhaii/vllm-cpu-rhel9:3.4.1
+        env:
+          - name: VLLM_ADDITIONAL_ARGS
+            value: >-
+              --max-model-len=1024 --max-num-seqs=1 --enforce-eager --dtype=float32
+          - name: VLLM_CPU_KVCACHE_SPACE
+            value: "4"
+          - name: VLLM_CPU_OMP_THREADS_BIND
+            value: "0-3"
+        resources:
+          limits:
+            cpu: "8"
+            memory: 32Gi
+          requests:
+            cpu: "4"
+            memory: 16Gi
+    nodeSelector:
+      workload.rhoai.io/platform: "true"

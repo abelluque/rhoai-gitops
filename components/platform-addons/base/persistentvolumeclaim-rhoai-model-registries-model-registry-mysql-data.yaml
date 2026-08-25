@@ -1,0 +1,18 @@
+# Source: platform-addons/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-registry-mysql-data
+  namespace: rhoai-model-registries
+  labels:
+    app.kubernetes.io/name: platform-addons
+    app.kubernetes.io/instance: platform-addons
+    platform-addons.rhoai.io/pvc: modelRegistryMysql
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-csi
+  resources:
+    requests:
+      storage: 10Gi
+  volumeMode: Filesystem

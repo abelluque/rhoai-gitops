@@ -1,0 +1,43 @@
+# Source: rhcl/templates/job-patch-rhcl-csv.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: patch-rhcl-csv
+  namespace: kuadrant-system
+  labels:
+    app.kubernetes.io/name: rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 240
+  template:
+    spec:
+      serviceAccountName: patch-rhcl-csv
+      restartPolicy: Never
+      containers:
+        - name: patch-rhcl-csv
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/patch-rhcl-csv.sh"]
+          env:
+            - name: RHCL_CSV
+              value: ""
+            - name: RHCL_NAMESPACE
+              value: "kuadrant-system"
+            - name: ISTIO_GATEWAY_CONTROLLER_NAMES
+              value: "istio.io/gateway-controller,openshift.io/gateway-controller/v1"
+            - name: WAIT_TIMEOUT
+              value: "180"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: rhcl-bootstrap-scripts
+            defaultMode: 493

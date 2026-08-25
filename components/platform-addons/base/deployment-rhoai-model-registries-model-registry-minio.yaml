@@ -1,0 +1,60 @@
+# Source: platform-addons/templates/minio.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-registry-minio
+  namespace: rhoai-model-registries
+  labels:
+    app: model-registry-minio
+    app.kubernetes.io/name: platform-addons
+    app.kubernetes.io/instance: platform-addons
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: model-registry-minio
+  template:
+    metadata:
+      labels:
+        app: model-registry-minio
+    spec:
+      nodeSelector:
+        workload.rhoai.io/platform: "true"
+      containers:
+        - name: minio
+          image: quay.io/minio/minio:RELEASE.2024-12-18T13-15-44Z
+          args:
+            - server
+            - /data
+            - --console-address
+            - ":9090"
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: model-registry-minio
+                  key: AWS_ACCESS_KEY_ID
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: model-registry-minio
+                  key: AWS_SECRET_ACCESS_KEY
+          ports:
+            - containerPort: 9000
+              name: api
+            - containerPort: 9090
+              name: console
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: model-registry-minio-data

@@ -1,0 +1,10 @@
+# Source: openshift-ai/charts/install-rhoai/templates/namespaces.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redhat-ods-operator
+  labels:
+    app.kubernetes.io/name: install-rhoai
+    app.kubernetes.io/instance: openshift-ai
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm

@@ -1,0 +1,53 @@
+# Source: openshift-ai/templates/job-patch-controller-resources.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: patch-controller-resources-maas-controller
+  namespace: redhat-ods-applications
+  labels:
+    app.kubernetes.io/name: openshift-ai
+    app.kubernetes.io/instance: openshift-ai
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      serviceAccountName: patch-controller-resources
+      restartPolicy: Never
+      containers:
+        - name: patch-controller-resources
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/patch-controller-resources.sh"]
+          env:
+            - name: TARGET_NAMESPACE
+              value: "redhat-ods-applications"
+            - name: WORKLOAD_KIND
+              value: "deployment"
+            - name: WORKLOAD_NAME
+              value: "maas-controller"
+            - name: CONTAINER_NAME
+              value: "manager"
+            - name: OTEL_COLLECTOR_NAME
+              value: ""
+            - name: CONTROLLER_MEMORY_REQUEST
+              value: "3Gi"
+            - name: CONTROLLER_MEMORY_LIMIT
+              value: "5Gi"
+            - name: CONTROLLER_CPU_REQUEST
+              value: "200m"
+            - name: CONTROLLER_CPU_LIMIT
+              value: "500m"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: patch-controller-resources-script
+            defaultMode: 493

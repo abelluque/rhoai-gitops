@@ -1,0 +1,10 @@
+# Source: maas-subscriptions/templates/job-patch-tenant-telemetry.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: patch-tenant-telemetry
+  namespace: models-as-a-service
+rules:
+  - apiGroups: ["maas.opendatahub.io"]
+    resources: ["tenants"]
+    verbs: ["get", "list", "watch", "patch", "update"]

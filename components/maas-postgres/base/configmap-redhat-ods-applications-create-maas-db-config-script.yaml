@@ -1,0 +1,91 @@
+# Source: maas-postgres/templates/job-maas-db-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: create-maas-db-config-script
+  namespace: redhat-ods-applications
+data:
+  create-maas-db-config.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    NAMESPACE="${POSTGRES_NAMESPACE:?POSTGRES_NAMESPACE required}"
+    MAAS_DB_SECRET="${MAAS_DB_SECRET:?MAAS_DB_SECRET required}"
+    MODE="${MAAS_DB_CONFIG_MODE:?MAAS_DB_CONFIG_MODE required}"
+    
+    create_secret() {
+      local db_url="$1"
+      oc create secret generic "${MAAS_DB_SECRET}" \
+        -n "${NAMESPACE}" \
+        --from-literal=DB_CONNECTION_URL="${db_url}" \
+        --dry-run=client -o yaml | oc apply -f -
+    
+      oc label secret "${MAAS_DB_SECRET}" -n "${NAMESPACE}" \
+        "app=maas-api" "purpose=poc" --overwrite
+    
+      echo "Created/updated secret ${MAAS_DB_SECRET}"
+    }
+    
+    restart_maas_api() {
+      if oc get deployment maas-api -n "${NAMESPACE}" >/dev/null 2>&1; then
+        echo "Restarting maas-api deployment..."
+        oc rollout restart deployment/maas-api -n "${NAMESPACE}"
+        oc rollout status deployment/maas-api -n "${NAMESPACE}" --timeout=300s
+      else
+        echo "maas-api deployment not found yet; secret is ready for when it appears"
+      fi
+    }
+    
+    if [[ "${MODE}" == "bundled" ]]; then
+      POSTGRES_SECRET="${POSTGRES_SECRET:?POSTGRES_SECRET required}"
+      POSTGRES_SERVICE="${POSTGRES_SERVICE:?POSTGRES_SERVICE required}"
+      POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+    
+      echo "Waiting for postgres deployment in ${NAMESPACE}..."
+      oc rollout status deployment/postgres -n "${NAMESPACE}" --timeout=300s
+    
+      POSTGRES_USER=$(oc get secret "${POSTGRES_SECRET}" -n "${NAMESPACE}" \
+        -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
+      POSTGRES_PASSWORD=$(oc get secret "${POSTGRES_SECRET}" -n "${NAMESPACE}" \
+        -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
+      POSTGRES_DB=$(oc get secret "${POSTGRES_SECRET}" -n "${NAMESPACE}" \
+        -o jsonpath='{.data.POSTGRES_DB}' | base64 -d)
+    
+      DB_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_SERVICE}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable"
+    elif [[ "${MODE}" == "external" ]]; then
+      CREDENTIALS_SECRET="${CREDENTIALS_SECRET:-}"
+      CONNECTION_URL_KEY="${CONNECTION_URL_KEY:-DB_CONNECTION_URL}"
+      POSTGRES_HOST="${POSTGRES_HOST:-}"
+      POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+      POSTGRES_DB="${POSTGRES_DB:-maas}"
+      POSTGRES_USER="${POSTGRES_USER:-}"
+      PASSWORD_KEY="${PASSWORD_KEY:-password}"
+      SSLMODE="${SSLMODE:-disable}"
+    
+      if [[ -n "${CREDENTIALS_SECRET}" ]]; then
+        if oc get secret "${CREDENTIALS_SECRET}" -n "${NAMESPACE}" \
+          -o jsonpath="{.data.${CONNECTION_URL_KEY}}" 2>/dev/null | grep -q .; then
+          DB_URL=$(oc get secret "${CREDENTIALS_SECRET}" -n "${NAMESPACE}" \
+            -o jsonpath="{.data.${CONNECTION_URL_KEY}}" | base64 -d)
+        else
+          POSTGRES_PASSWORD=$(oc get secret "${CREDENTIALS_SECRET}" -n "${NAMESPACE}" \
+            -o jsonpath="{.data.${PASSWORD_KEY}}" | base64 -d)
+          if [[ -z "${POSTGRES_HOST}" || -z "${POSTGRES_USER}" ]]; then
+            echo "external mode requires POSTGRES_HOST and POSTGRES_USER when credentials secret has no ${CONNECTION_URL_KEY}" >&2
+            exit 1
+          fi
+          DB_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${SSLMODE}"
+        fi
+      elif [[ -n "${POSTGRES_HOST}" && -n "${POSTGRES_USER}" && -n "${POSTGRES_PASSWORD:-}" ]]; then
+        DB_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${SSLMODE}"
+      else
+        echo "external mode requires credentialsSecret or POSTGRES_HOST/POSTGRES_USER/POSTGRES_PASSWORD" >&2
+        exit 1
+      fi
+    else
+      echo "unsupported MAAS_DB_CONFIG_MODE: ${MODE}" >&2
+      exit 1
+    fi
+    
+    create_secret "${DB_URL}"
+    restart_maas_api

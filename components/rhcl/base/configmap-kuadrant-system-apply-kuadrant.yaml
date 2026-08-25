@@ -1,0 +1,42 @@
+# Source: rhcl/templates/job-apply-kuadrant.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apply-kuadrant
+  namespace: kuadrant-system
+  labels:
+    app.kubernetes.io/name: rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+data:
+  kuadrant.yaml: |
+    ---
+    apiVersion: kuadrant.io/v1beta1
+    kind: Kuadrant
+    metadata:
+      name: kuadrant
+      namespace: kuadrant-system
+      labels:
+        app.kubernetes.io/name: rhcl
+        app.kubernetes.io/instance: rhcl
+        app.kubernetes.io/version: "0.1.0"
+    spec:
+      observability:
+        enable: true
+  apply-kuadrant.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    MANIFEST="/config/kuadrant.yaml"
+    
+    echo "Waiting for Kuadrant API..."
+    while true; do
+      if output=$(oc apply -f "${MANIFEST}" 2>&1); then
+        echo "${output}"
+        break
+      fi
+      echo "${output}"
+      sleep 10
+    done
+    
+    echo "Kuadrant applied"

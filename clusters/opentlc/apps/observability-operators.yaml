@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-operators
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: rhoai-maas
+    rhoai.example.com/cluster: opentlc
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: rhoai
+  source:
+    repoURL: https://github.com/abelluque/rhoai-gitops.git
+    targetRevision: main
+    path: components/observability-operators/overlays/opentlc
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-operators
+  ignoreDifferences:
+    - group: operators.coreos.com
+      kind: Subscription
+      jsonPointers:
+        - /spec/startingCSV
+        - /status
+    - group: operators.coreos.com
+      kind: InstallPlan
+      jsonPointers:
+        - /spec/approved
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 20
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m

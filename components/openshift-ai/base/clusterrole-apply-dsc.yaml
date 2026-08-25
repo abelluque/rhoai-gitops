@@ -1,0 +1,9 @@
+# Source: openshift-ai/templates/job-apply-dsc.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: apply-dsc
+rules:
+  - apiGroups: ["datasciencecluster.opendatahub.io"]
+    resources: ["datascienceclusters"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
