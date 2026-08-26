@@ -1,4 +1,6 @@
-# Apply once against the in-cluster OpenShift GitOps instance:
+# Apply as cluster-admin. The ClusterRoleBinding must exist before the
+# application-controller can reconcile privileged namespaces:
+#   oc apply -f bootstrap/gitops-controller-cluster-admin.yaml
 #   oc apply -f bootstrap/ocpai-prd-mtz-root-app.yaml
 # Then Argo CD syncs clusters/ocpai-prd-mtz/apps (the app-of-apps).
 apiVersion: argoproj.io/v1alpha1

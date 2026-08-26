@@ -1,0 +1,29 @@
+# Apply as cluster-admin before or together with the root Application.
+# OpenShift GitOps does not grant the application-controller write access to
+# privileged namespaces (for example openshift-ingress) by default. GitOps owns
+# cluster-scoped objects and operator namespaces; cluster-admin on this
+# ServiceAccount is required for that platform apps-of-apps model.
+#
+# Chicken-and-egg: the first sync of Application gitops-controller-rbac cannot
+# create ClusterRoleBindings until this binding already exists.
+#
+#   oc apply -f bootstrap/gitops-controller-cluster-admin.yaml
+#   oc apply -f bootstrap/opentlc-root-app.yaml
+#   # or
+#   oc apply -f bootstrap/ocpai-prd-mtz-root-app.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: openshift-gitops-argocd-application-controller-cluster-admin
+  labels:
+    app.kubernetes.io/name: gitops-controller-rbac
+    app.kubernetes.io/part-of: rhoai-maas
+    app.kubernetes.io/component: gitops-controller-rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: openshift-gitops-argocd-application-controller
+    namespace: openshift-gitops

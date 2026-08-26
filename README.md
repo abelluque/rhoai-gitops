@@ -16,7 +16,8 @@ Los manifiestos Kustomize versionados aquí describen el estado deseado. No es n
 
 ```
 rhoai-gitops/
-├── bootstrap/                          Application raíz (se aplica una vez por cluster)
+├── bootstrap/                          Application raíz y RBAC inicial (cluster-admin)
+│   ├── gitops-controller-cluster-admin.yaml
 │   ├── opentlc-root-app.yaml
 │   └── ocpai-prd-mtz-root-app.yaml
 ├── clusters/
@@ -29,7 +30,9 @@ rhoai-gitops/
 │   └── overlays/
 │       ├── opentlc/                    Overlay de laboratorio
 │       └── ocpai-prd-mtz/              Overlay de producción (autosuficiente)
-├── hack/                               Importador opcional desde un repo de charts
+├── hack/
+│   ├── argocd-sync-report.sh           Informe de Applications (sin secretos)
+│   └── import-from-helm.sh             Importador opcional desde un repo de charts
 └── scripts/probe-maas.sh               Comprobación de la API MaaS
 ```
 
@@ -123,6 +126,7 @@ Argo CD aplica las Applications hijas según `argocd.argoproj.io/sync-wave`. Los
 | Wave | Application | Namespace de destino | OpenTLC | ocpai-prd-mtz |
 | --- | --- | --- | --- | --- |
 | −1 | `AppProject` `rhoai` | `openshift-gitops` | Sí | Sí |
+| −1 | `gitops-controller-rbac` | cluster (`ClusterRoleBinding`) | Sí | Sí |
 | 1 | `cert-manager` | `cert-manager-operator` | Sí | Sí |
 | 1 | `observability-operators` | `openshift-operators` | Sí | Sí |
 | 1 | `platform-addons` | `rhoai-model-registries` | Sí | Sí |
@@ -141,6 +145,12 @@ Argo CD aplica las Applications hijas según `argocd.argoproj.io/sync-wave`. Los
 ## Procedimiento de arranque
 
 OpenShift GitOps debe existir en `openshift-gitops` **antes** de aplicar la Application raíz. En un cluster vacío, instalar el operador OpenShift GitOps por OLM y esperar el CSV `Succeeded`.
+
+El ServiceAccount `openshift-gitops-argocd-application-controller` no tiene, por defecto, permiso de escritura en namespaces privilegiados (`openshift-ingress`, espacios de operadores, RHOAI, Kuadrant). GitOps es propietario de objetos de ámbito de cluster y de esos namespaces; por ello el repositorio declara un `ClusterRoleBinding` de `cluster-admin` sobre esa cuenta. La Application `gitops-controller-rbac` (sync-wave `−1`) mantiene el enlace en Git. La primera sincronización de esa Application no puede crear `ClusterRoleBinding` si el controlador aún no dispone de ese privilegio (dependencia circular). El procedimiento fiable es aplicar el manifiesto de bootstrap como usuario cluster-admin **antes** o **junto con** la Application raíz:
+
+```bash
+oc apply -f bootstrap/gitops-controller-cluster-admin.yaml
+```
 
 ### 1. Elegir el overlay
 
@@ -163,17 +173,19 @@ Completar **antes** de que la wave 5 reconcilie MaaS:
 
 El overlay de producción **no** incluye el Secret de Postgres con credenciales reales. Argo CD no debe sobrescribir un Secret provisionado fuera de banda: el manifiesto GitOps documenta `existingSecret: maas-db-config` mediante un ConfigMap.
 
-### 3. Aplicar la Application raíz
+### 3. Aplicar el RBAC de bootstrap y la Application raíz
 
 ```bash
+oc apply -f bootstrap/gitops-controller-cluster-admin.yaml
 oc apply -f bootstrap/opentlc-root-app.yaml
 # o
+oc apply -f bootstrap/gitops-controller-cluster-admin.yaml
 oc apply -f bootstrap/ocpai-prd-mtz-root-app.yaml
 
 oc -n openshift-gitops get applications.argoproj.io
 ```
 
-Argo CD crea el `AppProject` `rhoai` y las Applications hijas. Las waves 1 a 7 ordenan el sync.
+Argo CD crea el `AppProject` `rhoai` y las Applications hijas. Las waves −1 a 7 ordenan el sync. El `ClusterRoleBinding` aplicado en bootstrap es el mismo objeto que reconcilia `gitops-controller-rbac`.
 
 ### 4. Verificar
 
@@ -200,9 +212,9 @@ Si el remoto Git no es el canónico, reemplazar `https://github.com/abelluque/rh
 - `bootstrap/opentlc-root-app.yaml`
 - `bootstrap/ocpai-prd-mtz-root-app.yaml`
 - `clusters/opentlc/apps/appproject.yaml`
-- `clusters/opentlc/apps/*.yaml` (`spec.source.repoURL`)
+- `clusters/opentlc/apps/*.yaml` (`spec.source.repoURL`), incluida `gitops-controller-rbac.yaml`
 - `clusters/ocpai-prd-mtz/apps/appproject.yaml`
-- `clusters/ocpai-prd-mtz/apps/*.yaml` (`spec.source.repoURL`)
+- `clusters/ocpai-prd-mtz/apps/*.yaml` (`spec.source.repoURL`), incluida `gitops-controller-rbac.yaml`
 
 `targetRevision` por defecto es `main`.
 
@@ -211,6 +223,17 @@ Si el remoto Git no es el canónico, reemplazar `https://github.com/abelluque/rh
 Los YAML bajo `components/` son el estado deseado. Los cambios operativos (dominio, `nfsServerName`, perfiles, réplicas) se hacen en el overlay del cluster y se sincronizan con GitOps.
 
 `hack/import-from-helm.sh` es **opcional** y solo aplica a quien disponga de un checkout hermano llamado `rhoai-helm` (o la variable `HELM_ROOT`). Regenerar **sobrescribe** manifiestos. No es un prerrequisito de instalación.
+
+## Diagnostics
+
+Un usuario con privilegio cluster-admin puede generar un informe del estado de las Applications de OpenShift GitOps, sin Secret ni credenciales. La salida es apta para adjuntarse a una solicitud de soporte.
+
+```bash
+./hack/argocd-sync-report.sh
+./hack/argocd-sync-report.sh argocd-sync-report.txt
+```
+
+El script enumera cada Application (sincronización, salud, mensaje de operación, condiciones truncadas y recursos cuyo apply ha fallado) y, de forma opcional, los eventos recientes del namespace `openshift-gitops`.
 
 ## Notas
 
