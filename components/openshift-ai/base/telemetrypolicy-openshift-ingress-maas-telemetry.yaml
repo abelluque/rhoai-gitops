@@ -6,6 +6,9 @@ metadata:
   namespace: openshift-ingress
   labels:
     app.kubernetes.io/part-of: maas-observability
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "10"
 spec:
   metrics:
     default:
