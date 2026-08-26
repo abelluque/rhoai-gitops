@@ -1,0 +1,21 @@
+# Source: gateway-api/templates/route.yaml
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: maas-default-gateway
+  namespace: openshift-ingress
+  annotations:
+    haproxy.router.openshift.io/timeout: "10m"
+    haproxy.router.openshift.io/set-forwarded-headers: "append"
+spec:
+  host: maas.apps.ocpai-prd-mtz.mtz.local
+  port:
+    targetPort: 80
+  tls:
+    insecureEdgeTerminationPolicy: Redirect
+    termination: edge
+  to:
+    kind: Service
+    name: maas-default-gateway-openshift-default
+    weight: 100
+  wildcardPolicy: None

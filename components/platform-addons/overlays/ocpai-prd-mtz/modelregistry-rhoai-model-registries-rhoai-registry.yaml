@@ -1,0 +1,22 @@
+# Source: platform-addons/templates/modelregistry.yaml
+apiVersion: modelregistry.opendatahub.io/v1beta1
+kind: ModelRegistry
+metadata:
+  name: rhoai-registry
+  namespace: rhoai-model-registries
+  labels:
+    app.kubernetes.io/name: platform-addons
+    app.kubernetes.io/instance: platform-addons
+spec:
+  grpc: {}
+  rest: {}
+  oauthProxy: {}
+  mysql:
+    host: model-registry-mysql
+    port: 3306
+    database: "modelregistry"
+    username: "mlmduser"
+    skipDBCreation: false
+    passwordSecret:
+      name: model-registry-mysql
+      key: database-password

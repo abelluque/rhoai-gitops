@@ -1,0 +1,37 @@
+# Source: nvidia-gpu-enablement/templates/nfd/job-apply-nodefeaturediscovery.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: apply-nfd-instance
+  namespace: openshift-nfd
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      serviceAccountName: apply-nfd-instance
+      restartPolicy: Never
+      containers:
+        - name: apply-nfd-instance
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/apply-nodefeaturediscovery.sh"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: config
+          configMap:
+            name: apply-nfd-instance
+        - name: scripts
+          configMap:
+            name: apply-nfd-instance
+            items:
+              - key: apply-nodefeaturediscovery.sh
+                path: apply-nodefeaturediscovery.sh
+            defaultMode: 493

@@ -1,0 +1,16 @@
+# Production does not deploy in-cluster PostgreSQL.
+# Provision Secret maas-db-config in this namespace before OpenShift AI
+# reconciles Models as a Service. See clusters/ocpai-prd-mtz/secrets/.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: maas-postgres-external
+  namespace: redhat-ods-applications
+  labels:
+    app.kubernetes.io/name: maas-postgres
+    app.kubernetes.io/instance: maas-postgres
+    app.kubernetes.io/part-of: rhoai-maas
+data:
+  existingSecret: maas-db-config
+  connectionUrlKey: DB_CONNECTION_URL
+  deployInCluster: "false"

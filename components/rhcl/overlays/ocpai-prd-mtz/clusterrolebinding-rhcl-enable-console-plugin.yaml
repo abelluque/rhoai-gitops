@@ -1,0 +1,17 @@
+# Source: rhcl/templates/job-enable-console-plugin.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rhcl-enable-console-plugin
+  labels:
+    app.kubernetes.io/name: rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: enable-console-plugin
+    namespace: kuadrant-system

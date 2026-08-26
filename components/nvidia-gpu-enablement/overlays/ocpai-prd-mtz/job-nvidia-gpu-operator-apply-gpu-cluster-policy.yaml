@@ -1,0 +1,37 @@
+# Source: nvidia-gpu-enablement/templates/nvidia-gpu-operator/job-apply-clusterpolicy.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: apply-gpu-cluster-policy
+  namespace: nvidia-gpu-operator
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      serviceAccountName: apply-gpu-cluster-policy
+      restartPolicy: Never
+      containers:
+        - name: apply-gpu-cluster-policy
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/apply-clusterpolicy.sh"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: config
+          configMap:
+            name: apply-gpu-cluster-policy
+        - name: scripts
+          configMap:
+            name: apply-gpu-cluster-policy
+            items:
+              - key: apply-clusterpolicy.sh
+                path: apply-clusterpolicy.sh
+            defaultMode: 493

@@ -1,0 +1,9 @@
+# Source: platform-addons/charts/install-platform-operators/templates/namespaces.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-operators
+  labels:
+    app.kubernetes.io/name: install-platform-operators
+    app.kubernetes.io/instance: platform-addons
+    app.kubernetes.io/version: "0.1.0"

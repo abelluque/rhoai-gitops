@@ -1,0 +1,9 @@
+# Source: leaderworkerset/charts/install-lws/templates/namespaces.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-lws-operator
+  labels:
+    app.kubernetes.io/name: install-lws
+    app.kubernetes.io/instance: leaderworkerset
+    app.kubernetes.io/version: "0.1.0"

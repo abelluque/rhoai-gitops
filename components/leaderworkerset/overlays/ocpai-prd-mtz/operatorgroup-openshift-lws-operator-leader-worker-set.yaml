@@ -1,0 +1,14 @@
+# Source: leaderworkerset/charts/install-lws/templates/operatorgroups.yaml
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: leader-worker-set
+  namespace: openshift-lws-operator
+  labels:
+    app.kubernetes.io/name: install-lws
+    app.kubernetes.io/instance: leaderworkerset
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  upgradeStrategy: Default
+  targetNamespaces:
+    - openshift-lws-operator

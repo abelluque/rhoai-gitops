@@ -1,0 +1,9 @@
+# Source: cert-manager/templates/operatorgroup.yaml
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-cert-manager-operator
+  namespace: cert-manager-operator
+spec:
+  # cert-manager Operator 1.15+ uses AllNamespaces (omit targetNamespaces).
+  upgradeStrategy: Default

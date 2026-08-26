@@ -1,0 +1,37 @@
+# Source: openshift-ai/templates/job-apply-dsc.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: apply-dsc
+  namespace: redhat-ods-applications
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      serviceAccountName: apply-dsc
+      restartPolicy: Never
+      containers:
+        - name: apply-dsc
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/apply-dsc.sh"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: config
+          configMap:
+            name: apply-dsc
+        - name: scripts
+          configMap:
+            name: apply-dsc
+            items:
+              - key: apply-dsc.sh
+                path: apply-dsc.sh
+            defaultMode: 493

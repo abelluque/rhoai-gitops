@@ -1,0 +1,20 @@
+# Source: openshift-ai/charts/install-rhoai/templates/install-plan-approvals.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: approve-rhods-operator
+  namespace: redhat-ods-operator
+  labels:
+    app.kubernetes.io/name: install-rhoai
+    app.kubernetes.io/instance: openshift-ai
+    app.kubernetes.io/version: "0.1.0"
+rules:
+  - apiGroups:
+      - operators.coreos.com
+    resources:
+      - installplans
+    verbs:
+      - get
+      - list
+      - patch
+      - update

@@ -1,0 +1,9 @@
+# Source: openshift-ai/templates/application-namespaces.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redhat-ods-monitoring
+  labels:
+    app.kubernetes.io/name: openshift-ai
+    app.kubernetes.io/instance: openshift-ai
+    app.kubernetes.io/version: "0.1.0"

@@ -1,0 +1,18 @@
+# Source: cert-manager/charts/install-cert-manager/templates/install-plan-approvals.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: approve-openshift-cert-manager-operator
+  namespace: cert-manager-operator
+  labels:
+    app.kubernetes.io/name: install-cert-manager
+    app.kubernetes.io/instance: cert-manager
+    app.kubernetes.io/version: "0.1.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: approve-openshift-cert-manager-operator
+subjects:
+- kind: ServiceAccount
+  name: approve-openshift-cert-manager-operator
+  namespace: cert-manager-operator

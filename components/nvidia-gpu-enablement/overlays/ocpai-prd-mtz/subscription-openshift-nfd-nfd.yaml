@@ -1,0 +1,17 @@
+# Source: nvidia-gpu-enablement/charts/install-nvidia-operators/templates/subscriptions.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: nfd
+  namespace: openshift-nfd
+  labels:
+    app.kubernetes.io/name: install-nvidia-operators
+    app.kubernetes.io/instance: nvidia-gpu-enablement
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  channel: stable
+  installPlanApproval: Manual
+  name: nfd
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: nfd.4.20.0-202605260442

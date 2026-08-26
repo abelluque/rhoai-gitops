@@ -1,0 +1,17 @@
+# Source: openshift-ai/templates/job-patch-controller-resources.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: patch-controller-resources-monitoring
+  namespace: redhat-ods-monitoring
+  labels:
+    app.kubernetes.io/name: openshift-ai
+    app.kubernetes.io/instance: openshift-ai
+    app.kubernetes.io/version: "0.1.0"
+rules:
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  - apiGroups: ["opentelemetry.io"]
+    resources: ["opentelemetrycollectors"]
+    verbs: ["get", "list", "watch", "patch", "update"]

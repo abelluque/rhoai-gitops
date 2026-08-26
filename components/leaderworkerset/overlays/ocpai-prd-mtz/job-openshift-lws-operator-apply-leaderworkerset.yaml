@@ -1,0 +1,37 @@
+# Source: leaderworkerset/templates/job-apply-leaderworkerset.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: apply-leaderworkerset
+  namespace: openshift-lws-operator
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      serviceAccountName: apply-leaderworkerset
+      restartPolicy: Never
+      containers:
+        - name: apply-leaderworkerset
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/apply-leaderworkerset.sh"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: config
+          configMap:
+            name: apply-leaderworkerset
+        - name: scripts
+          configMap:
+            name: apply-leaderworkerset
+            items:
+              - key: apply-leaderworkerset.sh
+                path: apply-leaderworkerset.sh
+            defaultMode: 493

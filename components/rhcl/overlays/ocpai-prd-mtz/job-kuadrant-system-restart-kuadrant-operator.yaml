@@ -1,0 +1,36 @@
+# Source: rhcl/templates/job-restart-kuadrant-operator.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: restart-kuadrant-operator
+  namespace: kuadrant-system
+  labels:
+    app.kubernetes.io/name: rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      serviceAccountName: restart-kuadrant-operator
+      restartPolicy: Never
+      containers:
+        - name: restart-kuadrant-operator
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/restart-kuadrant-operator.sh"]
+          env:
+            - name: KUADRANT_NAMESPACE
+              value: "kuadrant-system"
+          volumeMounts:
+            - name: restart-kuadrant-operator-script
+              mountPath: /scripts
+      volumes:
+        - name: restart-kuadrant-operator-script
+          configMap:
+            name: restart-kuadrant-operator-script
+            defaultMode: 493

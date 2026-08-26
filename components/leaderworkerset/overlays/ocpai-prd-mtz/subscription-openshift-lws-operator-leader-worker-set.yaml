@@ -1,0 +1,17 @@
+# Source: leaderworkerset/charts/install-lws/templates/subscriptions.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: leader-worker-set
+  namespace: openshift-lws-operator
+  labels:
+    app.kubernetes.io/name: install-lws
+    app.kubernetes.io/instance: leaderworkerset
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  channel: stable-v1.0
+  installPlanApproval: Manual
+  name: leader-worker-set
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: leader-worker-set.v1.0.0

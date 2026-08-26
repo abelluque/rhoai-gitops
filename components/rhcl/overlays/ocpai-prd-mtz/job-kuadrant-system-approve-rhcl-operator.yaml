@@ -1,0 +1,33 @@
+# Source: rhcl/charts/install-rhcl/templates/install-plan-approvals.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: approve-rhcl-operator
+  namespace: kuadrant-system
+  labels:
+    app.kubernetes.io/name: install-rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 270
+  template:
+    spec:
+      serviceAccountName: approve-rhcl-operator
+      restartPolicy: Never
+      containers:
+      - name: approve-operator
+        image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+        imagePullPolicy: IfNotPresent
+        command: ["/mnt/approve-operator.sh"]
+        volumeMounts:
+          - name: approve-operator-script
+            mountPath: /mnt
+      volumes:
+        - name: approve-operator-script
+          configMap:
+            name: approve-rhcl-operator-script
+            defaultMode: 493

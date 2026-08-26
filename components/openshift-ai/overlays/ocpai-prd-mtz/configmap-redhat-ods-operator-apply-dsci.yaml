@@ -1,0 +1,53 @@
+# Source: openshift-ai/templates/job-apply-dsci.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apply-dsci
+  namespace: redhat-ods-operator
+data:
+  dsci.yaml: |
+    ---
+    apiVersion: dscinitialization.opendatahub.io/v2
+    kind: DSCInitialization
+    metadata:
+      name: default-dsci
+    spec:
+      applicationsNamespace: redhat-ods-applications
+      monitoring:
+        alerting: {}
+        managementState: Managed
+        metrics:
+          exporters: {}
+          replicas: 1
+          storage:
+            retention: 90d
+            size: 5Gi
+        namespace: redhat-ods-monitoring
+        traces:
+          exporters: {}
+          sampleRatio: "0.1"
+          storage:
+            backend: pv
+            retention: 2160h0m0s
+      serviceMesh:
+        managementState: Removed
+      trustedCABundle:
+        customCABundle: ""
+        managementState: Managed
+  apply-dsci.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    MANIFEST="/config/dsci.yaml"
+    
+    echo "Waiting for DSCInitialization API..."
+    while true; do
+      if output=$(oc apply -f "${MANIFEST}" 2>&1); then
+        echo "${output}"
+        break
+      fi
+      echo "${output}"
+      sleep 10
+    done
+    
+    echo "DSCInitialization applied"

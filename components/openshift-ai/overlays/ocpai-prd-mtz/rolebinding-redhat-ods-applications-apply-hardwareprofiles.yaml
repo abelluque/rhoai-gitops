@@ -1,0 +1,14 @@
+# Source: openshift-ai/templates/hardwareprofiles.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: apply-hardwareprofiles
+  namespace: redhat-ods-applications
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: apply-hardwareprofiles
+subjects:
+  - kind: ServiceAccount
+    name: apply-hardwareprofiles
+    namespace: redhat-ods-applications

@@ -1,0 +1,9 @@
+# Source: platform-addons/templates/job-patch-pipelines.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: patch-pipelines-placement
+rules:
+  - apiGroups: ["operator.tekton.dev"]
+    resources: ["tektonconfigs"]
+    verbs: ["get", "list", "patch", "update"]

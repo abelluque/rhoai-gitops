@@ -1,0 +1,38 @@
+# Source: rhcl/templates/job-patch-authorino-tls.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: patch-authorino-tls
+  namespace: kuadrant-system
+  labels:
+    app.kubernetes.io/name: rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      serviceAccountName: patch-authorino-tls
+      restartPolicy: Never
+      containers:
+        - name: patch-authorino-tls
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/patch-authorino-tls.sh"]
+          env:
+            - name: KUADRANT_NAMESPACE
+              value: "kuadrant-system"
+            - name: AUTHORINO_CERT_SECRET
+              value: "authorino-server-cert"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: rhcl-bootstrap-scripts
+            defaultMode: 493

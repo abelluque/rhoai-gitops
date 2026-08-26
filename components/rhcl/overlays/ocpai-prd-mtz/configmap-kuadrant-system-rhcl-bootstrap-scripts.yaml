@@ -1,0 +1,308 @@
+# Source: rhcl/templates/configmap-script.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rhcl-bootstrap-scripts
+  namespace: kuadrant-system
+  labels:
+    app.kubernetes.io/name: rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+data:
+  apply-kuadrant.sh: |
+    #!/bin/bash
+    set -euo pipefail
+  
+    MANIFEST="/config/kuadrant.yaml"
+  
+    echo "Waiting for Kuadrant API..."
+    while true; do
+      if output=$(oc apply -f "${MANIFEST}" 2>&1); then
+        echo "${output}"
+        break
+      fi
+      echo "${output}"
+      sleep 10
+    done
+  
+    echo "Kuadrant applied"
+  enable-console-plugin.sh: |
+    #!/bin/bash
+    set -euo pipefail
+  
+    PLUGIN="${CONSOLE_PLUGIN:?CONSOLE_PLUGIN required}"
+  
+    if oc get console.operator.openshift.io cluster -o json | \
+      jq -e --arg p "${PLUGIN}" '.spec.plugins[]? | select(. == $p)' >/dev/null; then
+      echo "Console plugin ${PLUGIN} already enabled"
+      exit 0
+    fi
+  
+    oc patch console.operator.openshift.io cluster --type=json \
+      -p "[{\"op\":\"add\",\"path\":\"/spec/plugins/-\",\"value\":\"${PLUGIN}\"}]"
+  
+    echo "Enabled console plugin ${PLUGIN}"
+  patch-authorino-service.sh: |
+    #!/bin/bash
+    set -euo pipefail
+  
+    NAMESPACE="${KUADRANT_NAMESPACE:-kuadrant-system}"
+    SERVICE="authorino-authorino-authorization"
+    SECRET="${AUTHORINO_CERT_SECRET:-authorino-server-cert}"
+  
+    echo "Waiting for Service/${SERVICE} in ${NAMESPACE}..."
+    until oc get service "${SERVICE}" -n "${NAMESPACE}" >/dev/null 2>&1; do
+      sleep 5
+    done
+  
+    echo "Annotating ${SERVICE} with serving cert secret ${SECRET}..."
+    oc patch service "${SERVICE}" -n "${NAMESPACE}" --type=merge -p \
+      "{\"metadata\":{\"annotations\":{\"service.beta.openshift.io/serving-cert-secret-name\":\"${SECRET}\"}}}"
+  patch-authorino-tls.sh: |
+    #!/bin/bash
+    set -euo pipefail
+  
+    NAMESPACE="${KUADRANT_NAMESPACE:-kuadrant-system}"
+    SECRET="${AUTHORINO_CERT_SECRET:-authorino-server-cert}"
+  
+    echo "Waiting for Authorino/authorino in ${NAMESPACE}..."
+    until oc get authorino authorino -n "${NAMESPACE}" >/dev/null 2>&1; do
+      sleep 5
+    done
+  
+    echo "Patching Authorino TLS spec in ${NAMESPACE}..."
+    oc patch authorino authorino -n "${NAMESPACE}" --type=merge -p \
+      "{\"spec\":{\"clusterWide\":true,\"healthz\":{},\"listener\":{\"ports\":{},\"tls\":{\"certSecretRef\":{\"name\":\"${SECRET}\"},\"enabled\":true}},\"oidcServer\":{\"tls\":{\"enabled\":true,\"certSecretRef\":{\"name\":\"${SECRET}\"}}}}}"
+  patch-kuadrant-operator-resources.sh: |
+    #!/bin/bash
+    set -euo pipefail
+  
+    NAMESPACE="${KUADRANT_NAMESPACE:?KUADRANT_NAMESPACE required}"
+    DEPLOYMENT="${KUADRANT_CONTROLLER_DEPLOYMENT:-kuadrant-operator-controller-manager}"
+    RHCL_SUBSCRIPTION="${RHCL_SUBSCRIPTION:-rhcl-operator}"
+    RHCL_CSV_FALLBACK="${RHCL_CSV:-}"
+    WAIT_TIMEOUT="${WAIT_TIMEOUT:-90}"
+    BEST_EFFORT="${BEST_EFFORT:-true}"
+    MEMORY_REQUEST="${CONTROLLER_MEMORY_REQUEST:?CONTROLLER_MEMORY_REQUEST required}"
+    MEMORY_LIMIT="${CONTROLLER_MEMORY_LIMIT:?CONTROLLER_MEMORY_LIMIT required}"
+    CPU_REQUEST="${CONTROLLER_CPU_REQUEST:?CONTROLLER_CPU_REQUEST required}"
+    CPU_LIMIT="${CONTROLLER_CPU_LIMIT:?CONTROLLER_CPU_LIMIT required}"
+  
+    RESOURCES_JSON=$(jq -cn \
+      --arg mr "${MEMORY_REQUEST}" \
+      --arg ml "${MEMORY_LIMIT}" \
+      --arg cr "${CPU_REQUEST}" \
+      --arg cl "${CPU_LIMIT}" \
+      '{requests: {memory: $mr, cpu: $cr}, limits: {memory: $ml, cpu: $cl}}')
+  
+    resources_equal() {
+      local current="$1"
+      jq -e -n --argjson current "${current}" --argjson expected "${RESOURCES_JSON}" '$current == $expected' >/dev/null
+    }
+  
+    give_up() {
+      local msg="$1"
+      if [ "${BEST_EFFORT}" = "true" ]; then
+        echo "WARNING: ${msg}; skipping so Helm is not blocked" >&2
+        exit 0
+      fi
+      echo "Error: ${msg}" >&2
+      exit 1
+    }
+  
+    wait_for() {
+      local description="$1"
+      local check_cmd="$2"
+      local elapsed=0
+  
+      while ! eval "${check_cmd}" >/dev/null 2>&1; do
+        if [ "${elapsed}" -ge "${WAIT_TIMEOUT}" ]; then
+          give_up "timed out after ${WAIT_TIMEOUT}s waiting for ${description}"
+        fi
+        sleep 5
+        elapsed=$((elapsed + 5))
+      done
+    }
+  
+    resolve_rhcl_csv() {
+      local current
+  
+      if [ -n "${RHCL_CSV_FALLBACK}" ]; then
+        if oc get csv "${RHCL_CSV_FALLBACK}" -n "${NAMESPACE}" >/dev/null 2>&1; then
+          echo "${RHCL_CSV_FALLBACK}"
+          return 0
+        fi
+      fi
+  
+      current=$(oc get subscription "${RHCL_SUBSCRIPTION}" -n "${NAMESPACE}" -o jsonpath='{.status.currentCSV}' 2>/dev/null || true)
+      if [ -n "${current}" ] && oc get csv "${current}" -n "${NAMESPACE}" >/dev/null 2>&1; then
+        echo "${current}"
+        return 0
+      fi
+  
+      current=$(oc get csv -n "${NAMESPACE}" --no-headers 2>/dev/null | awk '/rhcl-operator/ {print $1; exit}')
+      if [ -n "${current}" ]; then
+        echo "${current}"
+        return 0
+      fi
+  
+      return 1
+    }
+  
+    wait_for_rhcl_csv() {
+      local elapsed=0
+  
+      while true; do
+        if CSV_NAME=$(resolve_rhcl_csv); then
+          echo "Using RHCL CSV ${CSV_NAME}"
+          return 0
+        fi
+        if [ "${elapsed}" -ge "${WAIT_TIMEOUT}" ]; then
+          oc get csv,sub,og,deploy -n "${NAMESPACE}" >&2 || true
+          give_up "timed out after ${WAIT_TIMEOUT}s waiting for RHCL CSV in ${NAMESPACE}"
+        fi
+        echo "Waiting for RHCL CSV..."
+        sleep 5
+        elapsed=$((elapsed + 5))
+      done
+    }
+  
+    patch_csv_resources() {
+      wait_for_rhcl_csv
+  
+      DEPLOY_IDX=$(oc get csv "${CSV_NAME}" -n "${NAMESPACE}" -o json | \
+        jq -r --arg name "${DEPLOYMENT}" '
+          (.spec.install.spec.deployments | map(.name) | index($name)) as $i |
+          if $i == null then empty else ($i | tostring) end')
+  
+      if [ -z "${DEPLOY_IDX}" ]; then
+        echo "Warning: ${DEPLOYMENT} not found in CSV ${CSV_NAME}; skipping CSV patch" >&2
+        return 0
+      fi
+  
+      CSV_CURRENT=$(oc get csv "${CSV_NAME}" -n "${NAMESPACE}" -o json | \
+        jq -c ".spec.install.spec.deployments[${DEPLOY_IDX}].spec.template.spec.containers[0].resources // {}")
+  
+      if resources_equal "${CSV_CURRENT}"; then
+        echo "CSV resources already set"
+        return 0
+      fi
+  
+      echo "Patching CSV ${CSV_NAME} deployment index ${DEPLOY_IDX}..."
+      oc patch csv "${CSV_NAME}" -n "${NAMESPACE}" --type=json -p \
+        "[{\"op\":\"replace\",\"path\":\"/spec/install/spec/deployments/${DEPLOY_IDX}/spec/template/spec/containers/0/resources\",\"value\":${RESOURCES_JSON}}]"
+    }
+  
+    patch_deployment_resources() {
+      wait_for "${DEPLOYMENT} in ${NAMESPACE}" "oc get deployment \"${DEPLOYMENT}\" -n \"${NAMESPACE}\""
+  
+      CURRENT=$(oc get deployment "${DEPLOYMENT}" -n "${NAMESPACE}" -o json | \
+        jq -c '.spec.template.spec.containers[] | select(.name == "manager") | .resources // {}')
+  
+      CONTAINER_IDX=$(oc get deployment "${DEPLOYMENT}" -n "${NAMESPACE}" -o json | \
+        jq -r '
+          (.spec.template.spec.containers | map(.name) | index("manager")) as $i |
+          if $i == null then empty else ($i | tostring) end')
+  
+      if [ -z "${CONTAINER_IDX}" ]; then
+        give_up "manager container not found in ${DEPLOYMENT}"
+      fi
+  
+      if resources_equal "${CURRENT}"; then
+        echo "${DEPLOYMENT} resources already set"
+        return 0
+      fi
+  
+      echo "Patching ${DEPLOYMENT} resources (request memory=${MEMORY_REQUEST}, limit memory=${MEMORY_LIMIT})..."
+      oc patch deployment "${DEPLOYMENT}" -n "${NAMESPACE}" --type=json -p \
+        "[{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/${CONTAINER_IDX}/resources\",\"value\":${RESOURCES_JSON}}]"
+    }
+  
+    patch_csv_resources
+    patch_deployment_resources
+  
+    echo "Kuadrant controller resources patched"
+  patch-rhcl-csv.sh: |
+    #!/bin/bash
+    set -euo pipefail
+  
+    CSV_PIN="${RHCL_CSV:-}"
+    NAMESPACE="${RHCL_NAMESPACE:?RHCL_NAMESPACE required}"
+    GATEWAY_CONTROLLERS="${ISTIO_GATEWAY_CONTROLLER_NAMES:?ISTIO_GATEWAY_CONTROLLER_NAMES required}"
+    WAIT_TIMEOUT="${WAIT_TIMEOUT:-180}"
+    SUBSCRIPTION="${RHCL_SUBSCRIPTION:-rhcl-operator}"
+  
+    resolve_csv() {
+      local current
+      if [ -n "${CSV_PIN}" ] && oc get csv "${CSV_PIN}" -n "${NAMESPACE}" >/dev/null 2>&1; then
+        echo "${CSV_PIN}"
+        return 0
+      fi
+      current=$(oc get subscription "${SUBSCRIPTION}" -n "${NAMESPACE}" -o jsonpath='{.status.currentCSV}' 2>/dev/null || true)
+      if [ -n "${current}" ] && oc get csv "${current}" -n "${NAMESPACE}" >/dev/null 2>&1; then
+        echo "${current}"
+        return 0
+      fi
+      current=$(oc get csv -n "${NAMESPACE}" --no-headers 2>/dev/null | awk '/rhcl-operator/ {print $1; exit}')
+      if [ -n "${current}" ]; then
+        echo "${current}"
+        return 0
+      fi
+      return 1
+    }
+  
+    echo "Waiting up to ${WAIT_TIMEOUT}s for RHCL CSV in ${NAMESPACE}..."
+    elapsed=0
+    CSV_NAME=""
+    while true; do
+      if CSV_NAME=$(resolve_csv); then
+        echo "Using CSV ${CSV_NAME}"
+        break
+      fi
+      if [ "${elapsed}" -ge "${WAIT_TIMEOUT}" ]; then
+        echo "Timed out waiting for RHCL CSV (pin=${CSV_PIN:-none}). Need an OperatorGroup in ${NAMESPACE}." >&2
+        oc get csv,sub,og -n "${NAMESPACE}" >&2 || true
+        exit 1
+      fi
+      sleep 5
+      elapsed=$((elapsed + 5))
+    done
+  
+    ENV_INDEX=$(oc get csv "${CSV_NAME}" -n "${NAMESPACE}" -o json | \
+      jq -r '
+        (.spec.install.spec.deployments[0].spec.template.spec.containers[0].env | map(.name) | index("ISTIO_GATEWAY_CONTROLLER_NAMES")) as $i |
+        if $i == null then empty else ($i | tostring) end')
+  
+    if [ -z "${ENV_INDEX}" ]; then
+      echo "ISTIO_GATEWAY_CONTROLLER_NAMES not found in CSV ${CSV_NAME}" >&2
+      exit 1
+    fi
+  
+    CURRENT=$(oc get csv "${CSV_NAME}" -n "${NAMESPACE}" -o json | \
+      jq -r ".spec.install.spec.deployments[0].spec.template.spec.containers[0].env[${ENV_INDEX}].value")
+  
+    if [ "${CURRENT}" = "${GATEWAY_CONTROLLERS}" ]; then
+      echo "CSV already patched"
+      exit 0
+    fi
+  
+    oc patch csv "${CSV_NAME}" -n "${NAMESPACE}" --type=json -p \
+      "[{\"op\":\"replace\",\"path\":\"/spec/install/spec/deployments/0/spec/template/spec/containers/0/env/${ENV_INDEX}/value\",\"value\":\"${GATEWAY_CONTROLLERS}\"}]"
+  
+    echo "Patched ISTIO_GATEWAY_CONTROLLER_NAMES on ${CSV_NAME}"
+  restart-kuadrant-operator.sh: |
+    #!/bin/bash
+    set -euo pipefail
+  
+    NAMESPACE="${KUADRANT_NAMESPACE:-kuadrant-system}"
+    DEPLOYMENT="kuadrant-operator-controller-manager"
+  
+    echo "Waiting for ${DEPLOYMENT} in ${NAMESPACE}..."
+    until oc get deployment "${DEPLOYMENT}" -n "${NAMESPACE}" >/dev/null 2>&1; do
+      sleep 5
+    done
+  
+    echo "Restarting ${DEPLOYMENT} in ${NAMESPACE}..."
+    oc delete pod -n "${NAMESPACE}" -l control-plane=controller-manager --wait=false
+    sleep 5
+    oc rollout status -n "${NAMESPACE}" deployment/"${DEPLOYMENT}" --timeout=300s

@@ -1,0 +1,42 @@
+# Source: platform-addons/templates/job-patch-pipelines.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: patch-pipelines-placement-script
+  namespace: openshift-operators
+data:
+  patch.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    NAME="config"
+    echo "Waiting for TektonConfig/${NAME}..."
+    until oc get tektonconfig "${NAME}" >/dev/null 2>&1; do sleep 10; done
+    oc patch tektonconfig "${NAME}" --type merge -p '{
+      "spec": {
+        "pipeline": {
+          "options": {
+            "deployments": {
+              "tekton-pipelines-controller": {
+                "spec": {
+                  "template": {
+                    "spec": {
+                      "nodeSelector": {"workload.rhoai.io/platform":"true"}
+                    }
+                  }
+                }
+              },
+              "tekton-pipelines-webhook": {
+                "spec": {
+                  "template": {
+                    "spec": {
+                      "nodeSelector": {"workload.rhoai.io/platform":"true"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }'
+    echo "Patched TektonConfig nodeSelector"

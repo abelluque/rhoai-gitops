@@ -1,0 +1,14 @@
+# Source: rhcl/templates/job-patch-rhcl-csv.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: patch-rhcl-csv
+  namespace: kuadrant-system
+  labels:
+    app.kubernetes.io/name: rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+rules:
+  - apiGroups: ["operators.coreos.com"]
+    resources: ["clusterserviceversions"]
+    verbs: ["get", "list", "watch", "patch", "update"]

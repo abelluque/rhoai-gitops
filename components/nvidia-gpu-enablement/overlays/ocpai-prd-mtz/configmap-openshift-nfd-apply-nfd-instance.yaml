@@ -1,0 +1,45 @@
+# Source: nvidia-gpu-enablement/templates/nfd/job-apply-nodefeaturediscovery.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apply-nfd-instance
+  namespace: openshift-nfd
+data:
+  nodefeaturediscovery.yaml: |
+    ---
+    apiVersion: nfd.openshift.io/v1
+    kind: NodeFeatureDiscovery
+    metadata:
+      name: nfd-instance
+      namespace: openshift-nfd
+    spec:
+      instance: ""
+      operand:
+        imagePullPolicy: IfNotPresent
+        servicePort: 12000
+      prunerOnDelete: true
+      topologyUpdater: false
+      workerConfig:
+        configData: |-
+          core:
+            sleepInterval: 60s
+          sources:
+            pci:
+              deviceClassWhitelist:
+              - "0200"
+              - "03"
+              - "12"
+              deviceLabelFields:
+              - vendor
+  apply-nodefeaturediscovery.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    MANIFEST="/config/nodefeaturediscovery.yaml"
+    
+    echo "Waiting for NodeFeatureDiscovery API..."
+    until oc apply -f "${MANIFEST}" >/dev/null 2>&1; do
+      sleep 10
+    done
+    
+    echo "NodeFeatureDiscovery applied"

@@ -1,0 +1,18 @@
+# Source: platform-addons/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rhods-notebooks-shared
+  namespace: rhods-notebooks
+  labels:
+    app.kubernetes.io/name: platform-addons
+    app.kubernetes.io/instance: platform-addons
+    platform-addons.rhoai.io/pvc: notebooksShared
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nutanix-files-dynamic
+  resources:
+    requests:
+      storage: 50Gi
+  volumeMode: Filesystem

@@ -1,0 +1,32 @@
+# Source: openshift-ai/templates/job-patch-segment-key-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: patch-segment-key-config-script
+  namespace: redhat-ods-applications
+data:
+  patch-segment-key-config.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    NAMESPACE="${ODS_NAMESPACE:-redhat-ods-applications}"
+    CONFIGMAP="${SEGMENT_KEY_CONFIGMAP:-odh-segment-key-config}"
+    ENABLED="${SEGMENT_KEY_ENABLED:-false}"
+    
+    echo "Waiting for ConfigMap/${CONFIGMAP} in ${NAMESPACE}..."
+    until oc get configmap "${CONFIGMAP}" -n "${NAMESPACE}" >/dev/null 2>&1; do
+      sleep 10
+    done
+    
+    current=$(oc get configmap "${CONFIGMAP}" -n "${NAMESPACE}" -o jsonpath='{.data.segmentKeyEnabled}')
+    echo "Current segmentKeyEnabled=${current}"
+    
+    if [ "${current}" = "${ENABLED}" ]; then
+      echo "segmentKeyEnabled already ${ENABLED}; no patch needed"
+      exit 0
+    fi
+    
+    echo "Patching segmentKeyEnabled to ${ENABLED}..."
+    oc patch configmap "${CONFIGMAP}" -n "${NAMESPACE}" --type merge -p "{\"data\":{\"segmentKeyEnabled\":\"${ENABLED}\"}}"
+    
+    echo "Patched ConfigMap/${CONFIGMAP}"

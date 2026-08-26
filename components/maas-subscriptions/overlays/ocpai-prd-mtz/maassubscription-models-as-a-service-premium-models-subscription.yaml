@@ -1,0 +1,24 @@
+# Source: maas-subscriptions/templates/subscription.yaml
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSSubscription
+metadata:
+  annotations:
+    openshift.io/display-name: Premium Coding Models Subscription
+  name: premium-models-subscription
+  namespace: models-as-a-service
+spec:
+  modelRefs:
+  - name: deepseek-coder-33b
+    namespace: ai-models
+    tokenRateLimits:
+      - limit: 10000
+        window: 2m
+  - name: qwen25-coder-32b
+    namespace: ai-models
+    tokenRateLimits:
+      - limit: 10000
+        window: 2m
+  owner:
+    groups:
+      - name: premium-users
+  priority: 1

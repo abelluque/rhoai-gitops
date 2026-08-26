@@ -1,0 +1,51 @@
+# Source: rhcl/templates/job-patch-kuadrant-operator-resources.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: patch-kuadrant-operator-resources
+  namespace: kuadrant-system
+  labels:
+    app.kubernetes.io/name: rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 240
+  template:
+    spec:
+      serviceAccountName: patch-kuadrant-operator-resources
+      restartPolicy: Never
+      containers:
+        - name: patch-kuadrant-operator-resources
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/patch-kuadrant-operator-resources.sh"]
+          env:
+            - name: KUADRANT_NAMESPACE
+              value: "kuadrant-system"
+            - name: RHCL_CSV
+              value: "rhcl-operator.v1.3.4"
+            - name: WAIT_TIMEOUT
+              value: "90"
+            - name: BEST_EFFORT
+              value: "true"
+            - name: CONTROLLER_MEMORY_REQUEST
+              value: "3Gi"
+            - name: CONTROLLER_MEMORY_LIMIT
+              value: "5Gi"
+            - name: CONTROLLER_CPU_REQUEST
+              value: "200m"
+            - name: CONTROLLER_CPU_LIMIT
+              value: "500m"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: rhcl-bootstrap-scripts
+            defaultMode: 493

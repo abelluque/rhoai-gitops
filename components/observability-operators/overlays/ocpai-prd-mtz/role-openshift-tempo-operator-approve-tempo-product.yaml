@@ -1,0 +1,20 @@
+# Source: observability-operators/charts/install-observability/templates/install-plan-approvals.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: approve-tempo-product
+  namespace: openshift-tempo-operator
+  labels:
+    app.kubernetes.io/name: install-observability
+    app.kubernetes.io/instance: observability-operators
+    app.kubernetes.io/version: "0.1.0"
+rules:
+  - apiGroups:
+      - operators.coreos.com
+    resources:
+      - installplans
+    verbs:
+      - get
+      - list
+      - patch
+      - update

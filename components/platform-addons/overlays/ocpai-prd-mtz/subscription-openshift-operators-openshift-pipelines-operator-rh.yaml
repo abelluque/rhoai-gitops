@@ -1,0 +1,16 @@
+# Source: platform-addons/charts/install-platform-operators/templates/subscriptions.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: openshift-pipelines-operator-rh
+  namespace: openshift-operators
+  labels:
+    app.kubernetes.io/name: install-platform-operators
+    app.kubernetes.io/instance: platform-addons
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  channel: latest
+  installPlanApproval: Automatic
+  name: openshift-pipelines-operator-rh
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

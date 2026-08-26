@@ -1,0 +1,14 @@
+# Source: nvidia-gpu-enablement/templates/nfd/job-apply-nodefeaturediscovery.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: apply-nfd-instance
+  namespace: openshift-nfd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: apply-nfd-instance
+subjects:
+  - kind: ServiceAccount
+    name: apply-nfd-instance
+    namespace: openshift-nfd

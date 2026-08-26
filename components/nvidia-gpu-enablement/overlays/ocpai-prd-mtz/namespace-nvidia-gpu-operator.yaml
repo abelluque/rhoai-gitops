@@ -1,0 +1,9 @@
+# Source: nvidia-gpu-enablement/charts/install-nvidia-operators/templates/namespaces.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nvidia-gpu-operator
+  labels:
+    app.kubernetes.io/name: install-nvidia-operators
+    app.kubernetes.io/instance: nvidia-gpu-enablement
+    app.kubernetes.io/version: "0.1.0"

@@ -1,0 +1,12 @@
+# Source: platform-addons/charts/install-platform-operators/templates/operatorgroups.yaml
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-gitops-operator
+  namespace: openshift-gitops-operator
+  labels:
+    app.kubernetes.io/name: install-platform-operators
+    app.kubernetes.io/instance: platform-addons
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  upgradeStrategy: Default

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redhat-ods-applications
+  labels:
+    app.kubernetes.io/name: maas-postgres
+    app.kubernetes.io/instance: maas-postgres
+    app.kubernetes.io/part-of: rhoai-maas

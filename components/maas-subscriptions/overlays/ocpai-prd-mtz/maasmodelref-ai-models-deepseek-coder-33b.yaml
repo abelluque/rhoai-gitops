@@ -1,0 +1,14 @@
+# Source: maas-subscriptions/templates/maasmodelref.yaml
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: "deepseek-coder-33b"
+  namespace: "ai-models"
+  labels:
+    migration.maas.opendatahub.io/from-tier: "premium"
+  annotations:
+    migration.maas.opendatahub.io/original-tier: "premium"
+spec:
+  modelRef:
+    kind: LLMInferenceService
+    name: "deepseek-coder-33b"

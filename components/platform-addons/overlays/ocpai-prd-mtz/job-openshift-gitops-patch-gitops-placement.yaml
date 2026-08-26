@@ -1,0 +1,30 @@
+# Source: platform-addons/templates/job-patch-gitops.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: patch-gitops-placement
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      serviceAccountName: patch-gitops-placement
+      restartPolicy: Never
+      nodeSelector:
+        workload.rhoai.io/platform: "true"
+      containers:
+        - name: patch
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          command: ["/scripts/patch.sh"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: patch-gitops-placement-script
+            defaultMode: 493

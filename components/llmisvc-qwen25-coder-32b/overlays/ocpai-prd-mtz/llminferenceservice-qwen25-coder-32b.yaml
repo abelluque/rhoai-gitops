@@ -1,0 +1,65 @@
+# Source: llmisvc/templates/llminferenceservice.yaml
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  annotations:
+    openshift.io/display-name: Qwen2.5 Coder 32B Instruct FP8
+    opendatahub.io/model-type: "generative"
+    opendatahub.io/genai-use-case: "code"
+    openshift.io/description: "Qwen2.5-Coder 32B Instruct (FP8) for code generation and software engineering."
+    opendatahub.io/hardware-profile-name: gpu
+    opendatahub.io/hardware-profile-namespace: redhat-ods-applications
+  labels:
+    app.kubernetes.io/name: qwen25-coder-32b
+    app.kubernetes.io/instance: llmisvc-qwen25-coder-32b
+    app.kubernetes.io/version: "3.3.1"
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/genai-asset: "true"
+  name: qwen25-coder-32b
+spec:
+  model:
+    name: qwen25-coder-32b
+    uri: hf://RedHatAI/Qwen2.5-Coder-32B-Instruct-FP8-dynamic
+  replicas: 2
+  router:
+    gateway:
+      refs:
+        - name: maas-default-gateway
+          namespace: openshift-ingress
+    route: {}
+    scheduler: {}
+  template:
+    containers:
+      - name: main
+        image: registry.redhat.io/rhaiis/vllm-cuda-rhel9:3.3.1
+        env:
+          - name: VLLM_ADDITIONAL_ARGS
+            value: >-
+              --max-model-len=32768 --tensor-parallel-size=1 --pipeline-parallel-size=1
+        envFrom:
+            - secretRef:
+                name: hf-token
+        resources:
+          limits:
+            cpu: "8"
+            memory: 64Gi
+            nvidia.com/gpu: "1"
+          requests:
+            cpu: "4"
+            memory: 32Gi
+            nvidia.com/gpu: "1"
+    nodeSelector:
+      nvidia.com/gpu.present: "true"
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: qwen25-coder-32b
+            topologyKey: kubernetes.io/hostname
+          weight: 100
+    tolerations:
+      - effect: NoSchedule
+        key: nvidia.com/gpu
+        operator: Exists

@@ -1,0 +1,18 @@
+# Source: rhcl/charts/install-rhcl/templates/install-plan-approvals.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: approve-rhcl-operator
+  namespace: kuadrant-system
+  labels:
+    app.kubernetes.io/name: install-rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: approve-rhcl-operator
+subjects:
+- kind: ServiceAccount
+  name: approve-rhcl-operator
+  namespace: kuadrant-system

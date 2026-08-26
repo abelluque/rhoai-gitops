@@ -1,0 +1,73 @@
+# Source: openshift-ai/templates/job-apply-dsc.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apply-dsc
+  namespace: redhat-ods-applications
+data:
+  dsc.yaml: |
+    ---
+    apiVersion: datasciencecluster.opendatahub.io/v2
+    kind: DataScienceCluster
+    metadata:
+      name: default-dsc
+    spec:
+      components:
+        aipipelines:
+          argoWorkflowsControllers:
+            managementState: Managed
+          managementState: Removed
+        dashboard:
+          managementState: Managed
+        feastoperator:
+          managementState: Removed
+        kserve:
+          managementState: Managed
+          modelsAsService:
+            managementState: Managed
+          nim:
+            managementState: Managed
+          rawDeploymentServiceConfig: Headless
+        kueue:
+          defaultClusterQueueName: default
+          defaultLocalQueueName: default
+          managementState: Removed
+        llamastackoperator:
+          managementState: Managed
+        mlflowoperator:
+          managementState: Removed
+        modelregistry:
+          managementState: Managed
+          registriesNamespace: rhoai-model-registries
+        ray:
+          managementState: Removed
+        trainer:
+          managementState: Removed
+        trainingoperator:
+          managementState: Removed
+        trustyai:
+          eval:
+            lmeval:
+              permitCodeExecution: deny
+              permitOnline: deny
+          managementState: Managed
+        workbenches:
+          managementState: Managed
+          workbenchNamespace: rhods-notebooks
+  apply-dsc.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    MANIFEST="/config/dsc.yaml"
+    
+    echo "Waiting for DataScienceCluster API..."
+    while true; do
+      if output=$(oc apply -f "${MANIFEST}" 2>&1); then
+        echo "${output}"
+        break
+      fi
+      echo "${output}"
+      sleep 10
+    done
+    
+    echo "DataScienceCluster applied"

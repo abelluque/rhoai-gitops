@@ -1,0 +1,33 @@
+# Source: maas-subscriptions/templates/job-patch-tenant-telemetry.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: patch-tenant-telemetry-script
+  namespace: models-as-a-service
+data:
+  patch-tenant-telemetry.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    NAMESPACE="${MAAS_NAMESPACE:-models-as-a-service}"
+    TENANT="${MAAS_TENANT:-default-tenant}"
+    
+    echo "Waiting for Tenant/${TENANT} in ${NAMESPACE}..."
+    until oc get tenant "${TENANT}" -n "${NAMESPACE}" >/dev/null 2>&1; do
+      sleep 5
+    done
+    
+    echo "Enabling telemetry on ${TENANT}..."
+    oc patch tenant "${TENANT}" -n "${NAMESPACE}" --type merge -p '{
+      "spec": {
+        "telemetry": {
+          "enabled": true,
+          "metrics": {
+            "captureOrganization": true,
+            "captureUser": false,
+            "captureGroup": false,
+            "captureModelUsage": true
+          }
+        }
+      }
+    }'

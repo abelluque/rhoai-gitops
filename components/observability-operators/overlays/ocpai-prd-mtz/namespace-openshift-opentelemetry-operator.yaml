@@ -1,0 +1,9 @@
+# Source: observability-operators/charts/install-observability/templates/namespaces.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-opentelemetry-operator
+  labels:
+    app.kubernetes.io/name: install-observability
+    app.kubernetes.io/instance: observability-operators
+    app.kubernetes.io/version: "0.1.0"

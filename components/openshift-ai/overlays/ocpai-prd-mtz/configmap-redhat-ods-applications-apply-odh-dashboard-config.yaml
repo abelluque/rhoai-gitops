@@ -1,0 +1,44 @@
+# Source: openshift-ai/templates/odhdashboardconfig.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apply-odh-dashboard-config
+  namespace: redhat-ods-applications
+data:
+  odh-dashboard-config.yaml: |
+    ---
+    # Enables Gen AI Studio (Playground) in the OpenShift AI dashboard.
+    # The dashboard operator may create a default OdhDashboardConfig when the dashboard
+    # component is deployed; applying this sets genAiStudio: true (create or merge).
+    apiVersion: opendatahub.io/v1alpha
+    kind: OdhDashboardConfig
+    metadata:
+      name: odh-dashboard-config
+      namespace: redhat-ods-applications
+      labels:
+        app.kubernetes.io/part-of: rhods-dashboard
+        app.opendatahub.io/rhods-dashboard: "true"
+    spec:
+      dashboardConfig:
+        genAiStudio: true
+        maasAuthPolicies: true
+        modelAsService: true
+        observabilityDashboard: true
+        vLLMDeploymentOnMaaS: true
+  apply-odh-dashboard-config.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    MANIFEST="/config/odh-dashboard-config.yaml"
+    
+    echo "Waiting for OdhDashboardConfig API..."
+    while true; do
+      if output=$(oc apply -f "${MANIFEST}" 2>&1); then
+        echo "${output}"
+        break
+      fi
+      echo "${output}"
+      sleep 10
+    done
+    
+    echo "OdhDashboardConfig applied"

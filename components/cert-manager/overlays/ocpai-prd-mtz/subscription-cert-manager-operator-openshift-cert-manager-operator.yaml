@@ -1,0 +1,19 @@
+# Source: cert-manager/charts/install-cert-manager/templates/subscriptions.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: openshift-cert-manager-operator
+  namespace: cert-manager-operator
+  labels:
+    app.kubernetes.io/name: install-cert-manager
+    app.kubernetes.io/instance: cert-manager
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+spec:
+  channel: stable-v1
+  installPlanApproval: Manual
+  name: openshift-cert-manager-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: cert-manager-operator.v1.19.0

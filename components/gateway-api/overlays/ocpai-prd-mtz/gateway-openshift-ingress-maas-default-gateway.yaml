@@ -1,0 +1,38 @@
+# Source: gateway-api/templates/gateway.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: maas-default-gateway
+  namespace: openshift-ingress
+  annotations:
+    opendatahub.io/managed: "false"
+    security.opendatahub.io/authorino-tls-bootstrap: "true"
+  labels:
+    app.kubernetes.io/component: gateway
+    app.kubernetes.io/instance: maas-default-gateway
+    app.kubernetes.io/name: maas
+    istio.io/rev: openshift-gateway
+    opendatahub.io/managed: "false"
+spec:
+  gatewayClassName: openshift-default
+  listeners:
+    - name: http
+      hostname: "maas.apps.ocpai-prd-mtz.mtz.local"
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https
+      hostname: "maas.apps.ocpai-prd-mtz.mtz.local"
+      port: 443
+      protocol: HTTPS
+      tls:
+        certificateRefs:
+        - group: ""
+          kind: Secret
+          name: maas-default-gateway-tls
+        mode: Terminate
+      allowedRoutes:
+        namespaces:
+          from: All

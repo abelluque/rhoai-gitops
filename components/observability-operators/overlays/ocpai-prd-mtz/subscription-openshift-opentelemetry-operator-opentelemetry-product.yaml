@@ -1,0 +1,17 @@
+# Source: observability-operators/charts/install-observability/templates/subscriptions.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: opentelemetry-product
+  namespace: openshift-opentelemetry-operator
+  labels:
+    app.kubernetes.io/name: install-observability
+    app.kubernetes.io/instance: observability-operators
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  channel: stable
+  installPlanApproval: Manual
+  name: opentelemetry-product
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: opentelemetry-operator.v0.144.0-3

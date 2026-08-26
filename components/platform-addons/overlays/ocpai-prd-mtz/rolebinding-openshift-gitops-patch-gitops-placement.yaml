@@ -1,0 +1,14 @@
+# Source: platform-addons/templates/job-patch-gitops.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: patch-gitops-placement
+  namespace: openshift-gitops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: patch-gitops-placement
+subjects:
+  - kind: ServiceAccount
+    name: patch-gitops-placement
+    namespace: openshift-gitops

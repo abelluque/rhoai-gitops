@@ -1,0 +1,18 @@
+# Source: rhcl/templates/job-apply-kuadrant.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: apply-kuadrant
+  namespace: kuadrant-system
+  labels:
+    app.kubernetes.io/name: rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: apply-kuadrant
+subjects:
+  - kind: ServiceAccount
+    name: apply-kuadrant
+    namespace: kuadrant-system

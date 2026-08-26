@@ -1,0 +1,18 @@
+# Source: openshift-ai/charts/install-rhoai/templates/install-plan-approvals.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: approve-rhods-operator
+  namespace: redhat-ods-operator
+  labels:
+    app.kubernetes.io/name: install-rhoai
+    app.kubernetes.io/instance: openshift-ai
+    app.kubernetes.io/version: "0.1.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: approve-rhods-operator
+subjects:
+- kind: ServiceAccount
+  name: approve-rhods-operator
+  namespace: redhat-ods-operator

@@ -1,0 +1,37 @@
+# Source: openshift-ai/templates/odhdashboardconfig.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: apply-odh-dashboard-config
+  namespace: redhat-ods-applications
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      serviceAccountName: apply-odh-dashboard-config
+      restartPolicy: Never
+      containers:
+        - name: apply-odh-dashboard-config
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/apply-odh-dashboard-config.sh"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: config
+          configMap:
+            name: apply-odh-dashboard-config
+        - name: scripts
+          configMap:
+            name: apply-odh-dashboard-config
+            items:
+              - key: apply-odh-dashboard-config.sh
+                path: apply-odh-dashboard-config.sh
+            defaultMode: 493

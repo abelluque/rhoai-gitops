@@ -1,0 +1,12 @@
+# Source: observability-operators/charts/install-observability/templates/operatorgroups.yaml
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: opentelemetry-product
+  namespace: openshift-opentelemetry-operator
+  labels:
+    app.kubernetes.io/name: install-observability
+    app.kubernetes.io/instance: observability-operators
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  upgradeStrategy: Default

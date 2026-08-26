@@ -1,0 +1,21 @@
+# Source: platform-addons/templates/storageclass.yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nutanix-files-dynamic
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  labels:
+    app.kubernetes.io/name: platform-addons
+    app.kubernetes.io/instance: platform-addons
+provisioner: csi.nutanix.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: "ntnx-secret"
+  csi.storage.k8s.io/provisioner-secret-namespace: "openshift-cluster-csi-drivers"
+  dynamicProv: "ENABLED"
+  nfsServerName: "CHANGE_ME"
+  squashType: "none"
+  storageType: "NutanixFiles"

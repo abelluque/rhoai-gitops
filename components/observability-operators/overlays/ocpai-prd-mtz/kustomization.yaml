@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- configmap-openshift-cluster-observability-operator-approve-cluster-observability-operator-script.yaml
+- configmap-openshift-opentelemetry-operator-approve-opentelemetry-product-script.yaml
+- configmap-openshift-tempo-operator-approve-tempo-product-script.yaml
+- job-openshift-cluster-observability-operator-approve-cluster-observability-operator.yaml
+- job-openshift-opentelemetry-operator-approve-opentelemetry-product.yaml
+- job-openshift-tempo-operator-approve-tempo-product.yaml
+- namespace-openshift-cluster-observability-operator.yaml
+- namespace-openshift-opentelemetry-operator.yaml
+- namespace-openshift-tempo-operator.yaml
+- operatorgroup-openshift-cluster-observability-operator-cluster-observability-operator.yaml
+- operatorgroup-openshift-opentelemetry-operator-opentelemetry-product.yaml
+- operatorgroup-openshift-tempo-operator-tempo-product.yaml
+- role-openshift-cluster-observability-operator-approve-cluster-observability-operator.yaml
+- role-openshift-opentelemetry-operator-approve-opentelemetry-product.yaml
+- role-openshift-tempo-operator-approve-tempo-product.yaml
+- rolebinding-openshift-cluster-observability-operator-approve-cluster-observability-operator.yaml
+- rolebinding-openshift-opentelemetry-operator-approve-opentelemetry-product.yaml
+- rolebinding-openshift-tempo-operator-approve-tempo-product.yaml
+- serviceaccount-openshift-cluster-observability-operator-approve-cluster-observability-operator.yaml
+- serviceaccount-openshift-opentelemetry-operator-approve-opentelemetry-product.yaml
+- serviceaccount-openshift-tempo-operator-approve-tempo-product.yaml
+- subscription-openshift-cluster-observability-operator-cluster-observability-operator.yaml
+- subscription-openshift-opentelemetry-operator-opentelemetry-product.yaml
+- subscription-openshift-tempo-operator-tempo-product.yaml

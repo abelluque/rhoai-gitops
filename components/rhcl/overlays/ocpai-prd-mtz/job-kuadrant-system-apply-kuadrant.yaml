@@ -1,0 +1,41 @@
+# Source: rhcl/templates/job-apply-kuadrant.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: apply-kuadrant
+  namespace: kuadrant-system
+  labels:
+    app.kubernetes.io/name: rhcl
+    app.kubernetes.io/instance: rhcl
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      serviceAccountName: apply-kuadrant
+      restartPolicy: Never
+      containers:
+        - name: apply-kuadrant
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/apply-kuadrant.sh"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: config
+          configMap:
+            name: apply-kuadrant
+        - name: scripts
+          configMap:
+            name: apply-kuadrant
+            items:
+              - key: apply-kuadrant.sh
+                path: apply-kuadrant.sh
+            defaultMode: 493

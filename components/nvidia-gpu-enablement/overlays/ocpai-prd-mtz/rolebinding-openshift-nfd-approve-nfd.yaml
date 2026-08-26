@@ -1,0 +1,18 @@
+# Source: nvidia-gpu-enablement/charts/install-nvidia-operators/templates/install-plan-approvals.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: approve-nfd
+  namespace: openshift-nfd
+  labels:
+    app.kubernetes.io/name: install-nvidia-operators
+    app.kubernetes.io/instance: nvidia-gpu-enablement
+    app.kubernetes.io/version: "0.1.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: approve-nfd
+subjects:
+- kind: ServiceAccount
+  name: approve-nfd
+  namespace: openshift-nfd

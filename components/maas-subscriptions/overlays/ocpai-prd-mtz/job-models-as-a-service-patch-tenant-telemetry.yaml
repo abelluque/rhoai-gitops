@@ -1,0 +1,33 @@
+# Source: maas-subscriptions/templates/job-patch-tenant-telemetry.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: patch-tenant-telemetry
+  namespace: models-as-a-service
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      serviceAccountName: patch-tenant-telemetry
+      restartPolicy: Never
+      containers:
+        - name: patch-tenant-telemetry
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/patch-tenant-telemetry.sh"]
+          env:
+            - name: MAAS_NAMESPACE
+              value: models-as-a-service
+            - name: MAAS_TENANT
+              value: default-tenant
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: patch-tenant-telemetry-script
+            defaultMode: 493

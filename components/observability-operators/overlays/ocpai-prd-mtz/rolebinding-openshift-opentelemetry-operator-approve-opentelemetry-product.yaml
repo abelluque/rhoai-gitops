@@ -1,0 +1,18 @@
+# Source: observability-operators/charts/install-observability/templates/install-plan-approvals.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: approve-opentelemetry-product
+  namespace: openshift-opentelemetry-operator
+  labels:
+    app.kubernetes.io/name: install-observability
+    app.kubernetes.io/instance: observability-operators
+    app.kubernetes.io/version: "0.1.0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: approve-opentelemetry-product
+subjects:
+- kind: ServiceAccount
+  name: approve-opentelemetry-product
+  namespace: openshift-opentelemetry-operator

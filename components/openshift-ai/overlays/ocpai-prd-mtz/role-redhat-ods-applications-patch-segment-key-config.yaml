@@ -1,0 +1,10 @@
+# Source: openshift-ai/templates/job-patch-segment-key-config.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: patch-segment-key-config
+  namespace: redhat-ods-applications
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "patch", "update"]
