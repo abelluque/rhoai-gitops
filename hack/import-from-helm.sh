@@ -69,7 +69,7 @@ helm_tpl observability-operators openshift-operators "${CHARTS}/observability-op
   -f "${CLUSTER}/cluster.yaml" -f "${CLUSTER}/platform/values/observability-operators/values.yaml"
 helm_tpl platform-addons rhoai-model-registries "${CHARTS}/platform-addons" \
   -f "${CLUSTER}/cluster.yaml" -f "${CLUSTER}/platform/values/platform-addons/values.yaml" \
-  --set modelRegistry.createCR=true
+  --set modelRegistry.createCR=false
 helm_tpl leaderworkerset openshift-lws-operator "${CHARTS}/leaderworkerset" \
   -f "${CLUSTER}/cluster.yaml" -f "${CLUSTER}/platform/values/leaderworkerset/values.yaml"
 helm_tpl rhcl kuadrant-system "${CHARTS}/rhcl" \

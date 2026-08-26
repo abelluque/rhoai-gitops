@@ -9,7 +9,6 @@ resources:
 - deployment-rhoai-model-registries-model-registry-mysql.yaml
 - job-openshift-gitops-patch-gitops-placement.yaml
 - job-openshift-operators-patch-pipelines-placement.yaml
-- modelregistry-rhoai-model-registries-rhoai-registry.yaml
 - namespace-openshift-gitops-operator.yaml
 - namespace-openshift-gitops.yaml
 - namespace-openshift-operators.yaml

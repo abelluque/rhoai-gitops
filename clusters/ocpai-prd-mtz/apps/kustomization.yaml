@@ -11,6 +11,7 @@ resources:
   - gateway-api.yaml
   - maas-postgres.yaml
   - openshift-ai.yaml
+  - model-registry-cr.yaml
   - llmisvc-granite-8b.yaml
   - llmisvc-qwen25-coder-32b.yaml
   - llmisvc-deepseek-coder-33b.yaml

@@ -132,6 +132,7 @@ Argo CD aplica las Applications hijas según `argocd.argoproj.io/sync-wave`. Los
 | 3 | `gateway-api` | `openshift-ingress` | Sí | Sí |
 | 4 | `maas-postgres` | `redhat-ods-applications` | Postgres in-cluster | Solo wiring externo |
 | 5 | `openshift-ai` | `redhat-ods-operator` | Sí | Sí (RHOAI 3.4, canal `stable-3.x`) |
+| 5 | `model-registry-cr` | `rhoai-model-registries` | Sí | Sí (ModelRegistry CR tras las CRD del operador) |
 | 6 | Modelos (`llmisvc-*`) | `ai-models` | `llmisvc-granite` (CPU) | `llmisvc-granite-8b`, `llmisvc-qwen25-coder-32b`, `llmisvc-deepseek-coder-33b` |
 | 7 | `maas-subscriptions` | `models-as-a-service` | Granite 2B | Granite 8B (free); Qwen y DeepSeek (premium) |
 

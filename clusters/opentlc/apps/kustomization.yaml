@@ -10,5 +10,6 @@ resources:
   - gateway-api.yaml
   - maas-postgres.yaml
   - openshift-ai.yaml
+  - model-registry-cr.yaml
   - llmisvc-granite.yaml
   - maas-subscriptions.yaml
