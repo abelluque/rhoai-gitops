@@ -3,3 +3,8 @@ kind: Kustomization
 resources:
   - namespace-redhat-ods-applications.yaml
   - configmap-redhat-ods-applications-maas-postgres-external.yaml
+  - clusterrole-maas-postgres-label-gateway-access.yaml
+  - clusterrolebinding-maas-postgres-label-gateway-access.yaml
+  - configmap-redhat-ods-applications-label-gateway-access-script.yaml
+  - job-redhat-ods-applications-label-gateway-access.yaml
+  - serviceaccount-redhat-ods-applications-label-gateway-access.yaml

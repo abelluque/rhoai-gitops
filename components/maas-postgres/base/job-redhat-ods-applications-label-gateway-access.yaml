@@ -1,0 +1,36 @@
+# Source: maas-postgres/templates/job-label-gateway-access.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: label-gateway-access
+  namespace: redhat-ods-applications
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      serviceAccountName: label-gateway-access
+      restartPolicy: Never
+      containers:
+        - name: label-gateway-access
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/label-gateway-access.sh"]
+          env:
+            - name: POSTGRES_NAMESPACE
+              value: "redhat-ods-applications"
+            - name: GATEWAY_ACCESS_LABEL_KEY
+              value: "maas.opendatahub.io/gateway-access"
+            - name: GATEWAY_ACCESS_LABEL_VALUE
+              value: "true"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: label-gateway-access-script
+            defaultMode: 493

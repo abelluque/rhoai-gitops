@@ -9,6 +9,7 @@ resources:
 - job-kuadrant-system-apply-kuadrant.yaml
 - job-kuadrant-system-approve-rhcl-operator.yaml
 - job-kuadrant-system-enable-console-plugin.yaml
+- job-kuadrant-system-patch-authorino-ca.yaml
 - job-kuadrant-system-patch-authorino-service.yaml
 - job-kuadrant-system-patch-authorino-tls.yaml
 - job-kuadrant-system-patch-kuadrant-operator-resources.yaml
@@ -18,6 +19,7 @@ resources:
 - operatorgroup-kuadrant-system-rhcl-operator.yaml
 - role-kuadrant-system-apply-kuadrant.yaml
 - role-kuadrant-system-approve-rhcl-operator.yaml
+- role-kuadrant-system-patch-authorino-ca.yaml
 - role-kuadrant-system-patch-authorino-service.yaml
 - role-kuadrant-system-patch-authorino-tls.yaml
 - role-kuadrant-system-patch-kuadrant-operator-resources.yaml
@@ -25,6 +27,7 @@ resources:
 - role-kuadrant-system-restart-kuadrant-operator.yaml
 - rolebinding-kuadrant-system-apply-kuadrant.yaml
 - rolebinding-kuadrant-system-approve-rhcl-operator.yaml
+- rolebinding-kuadrant-system-patch-authorino-ca.yaml
 - rolebinding-kuadrant-system-patch-authorino-service.yaml
 - rolebinding-kuadrant-system-patch-authorino-tls.yaml
 - rolebinding-kuadrant-system-patch-kuadrant-operator-resources.yaml
@@ -33,6 +36,7 @@ resources:
 - serviceaccount-kuadrant-system-apply-kuadrant.yaml
 - serviceaccount-kuadrant-system-approve-rhcl-operator.yaml
 - serviceaccount-kuadrant-system-enable-console-plugin.yaml
+- serviceaccount-kuadrant-system-patch-authorino-ca.yaml
 - serviceaccount-kuadrant-system-patch-authorino-service.yaml
 - serviceaccount-kuadrant-system-patch-authorino-tls.yaml
 - serviceaccount-kuadrant-system-patch-kuadrant-operator-resources.yaml

@@ -6,3 +6,4 @@ metadata:
     app.kubernetes.io/name: maas-postgres
     app.kubernetes.io/instance: maas-postgres
     app.kubernetes.io/part-of: rhoai-maas
+    maas.opendatahub.io/gateway-access: "true"

@@ -5,4 +5,6 @@ metadata:
   name: ai-models
   labels:
     kubernetes.io/metadata.name: ai-models
+    maas.opendatahub.io/gateway-access: "true"
     opendatahub.io/dashboard: "true"
+    opendatahub.io/generated-namespace: "true"

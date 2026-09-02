@@ -1,0 +1,25 @@
+# Source: gateway-api/templates/default-gateway-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: maas-gateway-options
+  namespace: openshift-ingress
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+data:
+  deployment: |
+    spec:
+      template:
+        spec:
+          containers:
+          - name: istio-proxy
+            resources:
+              limits:
+                cpu: "2"
+                memory: 2Gi
+              requests:
+                cpu: 100m
+                memory: 256Mi
+  service: |
+    spec:
+      type: ClusterIP

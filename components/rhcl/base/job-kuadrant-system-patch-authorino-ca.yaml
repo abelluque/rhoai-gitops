@@ -1,8 +1,8 @@
-# Source: rhcl/templates/job-patch-authorino-tls.yaml
+# Source: rhcl/templates/job-patch-authorino-ca.yaml
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: patch-authorino-tls
+  name: patch-authorino-ca
   namespace: kuadrant-system
   labels:
     app.kubernetes.io/name: rhcl
@@ -11,23 +11,29 @@ metadata:
   annotations:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   backoffLimit: 12
   template:
     spec:
-      serviceAccountName: patch-authorino-tls
+      serviceAccountName: patch-authorino-ca
       restartPolicy: Never
       containers:
-        - name: patch-authorino-tls
+        - name: patch-authorino-ca
           image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
           imagePullPolicy: IfNotPresent
-          command: ["/scripts/patch-authorino-tls.sh"]
+          command: ["/scripts/patch-authorino-ca.sh"]
           env:
             - name: KUADRANT_NAMESPACE
               value: "kuadrant-system"
-            - name: AUTHORINO_CERT_SECRET
-              value: "authorino-server-cert"
+            - name: AUTHORINO_DEPLOYMENT
+              value: "authorino"
+            - name: SSL_CERT_FILE_PATH
+              value: "/etc/ssl/certs/openshift-service-ca/service-ca-bundle.crt"
+            - name: SERVICE_CA_VOLUME
+              value: "openshift-service-ca"
+            - name: SERVICE_CA_CONFIGMAP
+              value: "openshift-service-ca.crt"
           volumeMounts:
             - name: scripts
               mountPath: /scripts

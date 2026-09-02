@@ -10,10 +10,10 @@ metadata:
 spec:
   host: maas.apps.ocpai-prd-mtz.mtz.local
   port:
-    targetPort: 80
+    targetPort: https
   tls:
     insecureEdgeTerminationPolicy: Redirect
-    termination: edge
+    termination: passthrough
   to:
     kind: Service
     name: maas-default-gateway-openshift-default

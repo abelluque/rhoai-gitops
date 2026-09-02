@@ -5,6 +5,7 @@ metadata:
   name: maas-default-gateway
   namespace: openshift-ingress
   annotations:
+    argocd.argoproj.io/sync-wave: "1"
     opendatahub.io/managed: "false"
     security.opendatahub.io/authorino-tls-bootstrap: "true"
   labels:
@@ -19,7 +20,7 @@ spec:
     parametersRef:
       group: ""
       kind: ConfigMap
-      name: default-gateway-config
+      name: maas-gateway-options
   listeners:
     - name: https
       hostname: "maas.apps.cluster-6f7dh.6f7dh.sandbox3519.opentlc.com"
@@ -29,8 +30,11 @@ spec:
         certificateRefs:
         - group: ""
           kind: Secret
-          name: maas-gw-service-tls
+          name: router-certs-default
         mode: Terminate
       allowedRoutes:
         namespaces:
-          from: All
+          from: Selector
+          selector:
+            matchLabels:
+              maas.opendatahub.io/gateway-access: "true"

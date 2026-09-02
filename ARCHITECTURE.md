@@ -76,7 +76,7 @@ El overlay OpenTLC plantilla `maas.apps.cluster-6f7dh.6f7dh.sandbox3519.opentlc.
 ┌─────────────────────────────┐                 ┌─────────────────────────┐
 │ Plataforma e ingreso        │                 │ Planos IA y MaaS        │
 │ GitOps · cert-manager · UWM │                 │ DSC · KServe · vLLM     │
-│ Gateway · Route reencrypt   │                 │ Kuadrant · maas-api     │
+│ Gateway · Route passthrough │                 │ Kuadrant · maas-api     │
 └─────────────────────────────┘                 └─────────────────────────┘
 ```
 
@@ -118,9 +118,9 @@ Cada ISVC declara `router.gateway.refs` hacia `maas-default-gateway` en `openshi
 
 | Application | Path | Destino | Función |
 | --- | --- | --- | --- |
-| `rhcl` | `components/rhcl/overlays/<cluster>` | `kuadrant-system` | Operador Connectivity Link. Jobs: `apply-kuadrant`, `patch-rhcl-csv` (`ISTIO_GATEWAY_CONTROLLER_NAMES` incluye `openshift.io/gateway-controller/v1`), Authorino TLS/Service, console plugin. |
-| `gateway-api` | `components/gateway-api/overlays/<cluster>` | `openshift-ingress` | `GatewayClass` `openshift-default`, Gateway `maas-default-gateway`, Route reencrypt, ConfigMap `default-gateway-config`. |
-| `maas-postgres` | `components/maas-postgres/overlays/<cluster>` | `redhat-ods-applications` | Lab: Deployment Postgres + Job `create-maas-db-config`. Prod: ConfigMap de wiring; Secret real fuera de banda (`clusters/ocpai-prd-mtz/secrets/*.example`). |
+| `rhcl` | `components/rhcl/overlays/<cluster>` | `kuadrant-system` | Operador Connectivity Link. Jobs: `apply-kuadrant`, `patch-rhcl-csv` (`ISTIO_GATEWAY_CONTROLLER_NAMES` incluye `openshift.io/gateway-controller/v1`), Authorino TLS/Service, `patch-authorino-ca` (`SSL_CERT_FILE` / service-ca), console plugin. |
+| `gateway-api` | `components/gateway-api/overlays/<cluster>` | `openshift-ingress` | `GatewayClass` `openshift-default`, Gateway `maas-default-gateway` con `allowedRoutes` por label `maas.opendatahub.io/gateway-access=true`, Route **passthrough**, ConfigMap `maas-gateway-options` (istio-proxy 2Gi), TLS `router-certs-default`. |
+| `maas-postgres` | `components/maas-postgres/overlays/<cluster>` | `redhat-ods-applications` | Lab: Deployment Postgres + Job `create-maas-db-config`. Prod: ConfigMap de wiring; Secret real fuera de banda (`clusters/ocpai-prd-mtz/secrets/*.example`). Job `label-gateway-access` etiqueta el NS para el Gateway. |
 | `maas-subscriptions` | `components/maas-subscriptions/overlays/<cluster>` | `models-as-a-service` | `MaaSAuthPolicy`, `MaaSSubscription`, `MaaSModelRef`, Job `patch-tenant-telemetry`. |
 
 **No hay AuthPolicy Kuadrant en Git.** El `maas-controller` (operand RHOAI) las materializa cuando existen el ISVC, el ModelRef y la suscripción. En el lab se observó:
@@ -133,7 +133,7 @@ Cada ISVC declara `router.gateway.refs` hacia `maas-default-gateway` en `openshi
 ### 2.5 Flujo de tráfico
 
 1. Cliente → `https://maas.apps.<cluster>.<baseDomain>/ai-models/<model>/v1/chat/completions` con `Authorization: Bearer sk-oai-…`.
-2. Route `maas-default-gateway` (reencrypt, timeout 10m) → Service ClusterIP del Gateway Istio (`openshift-gateway`).
+2. Route `maas-default-gateway` (**passthrough**, timeout 10m) → Service ClusterIP del Gateway Istio, que termina TLS con el wildcard `*.apps`. Las HTTPRoutes solo se adhieren desde namespaces con `maas.opendatahub.io/gateway-access=true`.
 3. WASM Kuadrant (AuthPolicy + TokenRateLimitPolicy) en el sidecar **antes** del routing.
 4. Authorino: POST `maas-api:8443/internal/v1/api-keys/validate` y `/internal/v1/subscriptions/select`.
 5. Limitador: cuota por `auth.identity.userid` si coincide `selected_subscription_key`.

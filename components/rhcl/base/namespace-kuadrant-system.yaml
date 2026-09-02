@@ -7,4 +7,3 @@ metadata:
     app.kubernetes.io/name: install-rhcl
     app.kubernetes.io/instance: rhcl
     app.kubernetes.io/version: "0.1.0"
-    app.kubernetes.io/managed-by: Helm

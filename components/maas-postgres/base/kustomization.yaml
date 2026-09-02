@@ -1,12 +1,17 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
+- clusterrole-maas-postgres-label-gateway-access.yaml
+- clusterrolebinding-maas-postgres-label-gateway-access.yaml
 - configmap-redhat-ods-applications-create-maas-db-config-script.yaml
+- configmap-redhat-ods-applications-label-gateway-access-script.yaml
 - deployment-redhat-ods-applications-postgres.yaml
 - job-redhat-ods-applications-create-maas-db-config.yaml
+- job-redhat-ods-applications-label-gateway-access.yaml
 - persistentvolumeclaim-redhat-ods-applications-postgresql.yaml
 - role-redhat-ods-applications-create-maas-db-config.yaml
 - rolebinding-redhat-ods-applications-create-maas-db-config.yaml
 - secret-redhat-ods-applications-postgres-creds.yaml
 - service-redhat-ods-applications-postgres.yaml
 - serviceaccount-redhat-ods-applications-create-maas-db-config.yaml
+- serviceaccount-redhat-ods-applications-label-gateway-access.yaml

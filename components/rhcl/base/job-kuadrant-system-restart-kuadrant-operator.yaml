@@ -12,7 +12,6 @@ metadata:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
     argocd.argoproj.io/sync-wave: "4"
-    argocd.argoproj.io/sync-wave: "4"
 spec:
   backoffLimit: 4
   template:

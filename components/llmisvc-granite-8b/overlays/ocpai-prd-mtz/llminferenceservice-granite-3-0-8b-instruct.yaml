@@ -3,6 +3,7 @@ apiVersion: serving.kserve.io/v1alpha1
 kind: LLMInferenceService
 metadata:
   annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
     openshift.io/display-name: Granite 3.0 8B Instruct
     opendatahub.io/model-type: "generative"
     opendatahub.io/genai-use-case: "chat"

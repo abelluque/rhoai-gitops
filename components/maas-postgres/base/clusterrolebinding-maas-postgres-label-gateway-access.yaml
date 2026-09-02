@@ -1,0 +1,16 @@
+# Source: maas-postgres/templates/job-label-gateway-access.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: maas-postgres-label-gateway-access
+  labels:
+    app.kubernetes.io/name: maas-postgres
+    app.kubernetes.io/instance: maas-postgres
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: maas-postgres-label-gateway-access
+subjects:
+  - kind: ServiceAccount
+    name: label-gateway-access
+    namespace: redhat-ods-applications
