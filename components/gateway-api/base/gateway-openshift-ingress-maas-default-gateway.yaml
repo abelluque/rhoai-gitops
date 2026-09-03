@@ -23,14 +23,14 @@ spec:
       name: maas-gateway-options
   listeners:
     - name: https
-      hostname: "maas.apps.cluster-6f7dh.6f7dh.sandbox3519.opentlc.com"
+      hostname: "maas.apps.cluster-zd9hr.zd9hr.sandbox1414.opentlc.com"
       port: 443
       protocol: HTTPS
       tls:
         certificateRefs:
         - group: ""
           kind: Secret
-          name: router-certs-default
+          name: cert-manager-ingress-cert
         mode: Terminate
       allowedRoutes:
         namespaces:

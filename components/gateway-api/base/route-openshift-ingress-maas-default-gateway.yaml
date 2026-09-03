@@ -8,7 +8,7 @@ metadata:
     haproxy.router.openshift.io/timeout: "10m"
     haproxy.router.openshift.io/set-forwarded-headers: "append"
 spec:
-  host: maas.apps.cluster-6f7dh.6f7dh.sandbox3519.opentlc.com
+  host: maas.apps.cluster-zd9hr.zd9hr.sandbox1414.opentlc.com
   port:
     targetPort: https
   tls:
