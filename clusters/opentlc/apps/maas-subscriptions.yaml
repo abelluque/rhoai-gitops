@@ -12,7 +12,7 @@ spec:
   project: rhoai
   source:
     repoURL: https://github.com/abelluque/rhoai-gitops.git
-    targetRevision: main
+    targetRevision: rhoai-maas-demo-platform
     path: components/maas-subscriptions/overlays/opentlc
   destination:
     server: https://kubernetes.default.svc
