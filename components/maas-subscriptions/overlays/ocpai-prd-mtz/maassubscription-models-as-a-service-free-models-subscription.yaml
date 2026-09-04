@@ -11,8 +11,8 @@ spec:
   - name: granite-3-0-8b-instruct
     namespace: ai-models
     tokenRateLimits:
-      - limit: 1000
-        window: 5m
+      - limit: 10000
+        window: 1m
   owner:
     groups:
       - name: system:authenticated
