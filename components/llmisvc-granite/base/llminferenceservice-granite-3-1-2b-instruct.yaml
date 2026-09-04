@@ -36,9 +36,9 @@ spec:
         env:
           - name: VLLM_ADDITIONAL_ARGS
             value: >-
-              --max-model-len=1024 --max-num-seqs=1 --enforce-eager --dtype=float32
+              --max-model-len=4096 --max-num-seqs=1 --enforce-eager --dtype=float32
           - name: VLLM_CPU_KVCACHE_SPACE
-            value: "4"
+            value: "8"
           - name: VLLM_CPU_OMP_THREADS_BIND
             value: "0-3"
         resources:
