@@ -83,7 +83,7 @@ data:
       kataSandboxDevicePlugin:
         enabled: true
       mig:
-        strategy: single
+        strategy: none
       migManager:
         config:
           default: all-disabled

@@ -11,7 +11,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: nutanix-files-dynamic
+  storageClassName: ntnx-files
   resources:
     requests:
       storage: 50Gi

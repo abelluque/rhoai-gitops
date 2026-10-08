@@ -8,7 +8,7 @@ metadata:
     haproxy.router.openshift.io/timeout: "10m"
     haproxy.router.openshift.io/set-forwarded-headers: "append"
 spec:
-  host: maas.apps.ocpai-prd-mtz.mtz.local
+  host: maas.apps.ocpai-prd-mtz.intranet.local
   port:
     targetPort: 80
   tls:

@@ -23,20 +23,27 @@ data:
     
     function find_install_plans {
       oc get installplan -n "${NAMESPACE}" \
-        -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.clusterServiceVersionNames}{"\n"}{end}' 2>/dev/null \
-        | while IFS=$'\t' read -r name csvs; do
+        -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.approved}{"\n"}{end}' 2>/dev/null \
+        | while IFS=$'\t' read -r name approved; do
             [ -z "${name}" ] && continue
-            for csv in nfd.4.20.0-202605260442; do
-              case " ${csvs} " in
-                *"${csv}"*) echo "${name}" ;;
-              esac
-            done
+            if [ "${approved}" != "true" ]; then
+              echo "${name}"
+            fi
           done
     }
+
+    function nfd_ready {
+      oc get csv -n "${NAMESPACE}" -o jsonpath='{range .items[*]}{.status.phase}{"\n"}{end}' 2>/dev/null \
+        | grep -q '^Succeeded$'
+    }
     
-    echo "Waiting up to ${WAIT_TIMEOUT}s for InstallPlan (nfd.4.20.0-202605260442) in ${NAMESPACE}"
+    echo "Waiting up to ${WAIT_TIMEOUT}s for an NFD InstallPlan or a Succeeded CSV in ${NAMESPACE}"
     elapsed=0
     while true; do
+      if nfd_ready; then
+        echo "NFD CSV already Succeeded"
+        exit 0
+      fi
       install_plans=( $(find_install_plans) )
       if [ "${#install_plans[@]}" -gt 0 ]; then
         echo
@@ -54,8 +61,8 @@ data:
         exit 0
       fi
       if [ "${elapsed}" -ge "${WAIT_TIMEOUT}" ]; then
-        echo "Timed out after ${WAIT_TIMEOUT}s waiting for InstallPlan for: nfd.4.20.0-202605260442" >&2
-        echo "Pinned startingCSV is often missing from this cluster's catalog." >&2
+        echo "Timed out after ${WAIT_TIMEOUT}s waiting for an NFD InstallPlan in ${NAMESPACE}" >&2
+        echo "The Subscription follows the stable channel head for this OpenShift version." >&2
         oc get subscription,installplan,csv -n "${NAMESPACE}" >&2 || true
         exit 1
       fi

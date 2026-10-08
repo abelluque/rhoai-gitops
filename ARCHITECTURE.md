@@ -1,12 +1,12 @@
 # Arquitectura — OpenShift GitOps (Kustomize) para RHOAI 3.4 y MaaS
 
-Documento de arquitectura de [`abelluque/rhoai-gitops`](https://github.com/abelluque/rhoai-gitops): fuente de verdad GitOps (Argo CD + Kustomize, patrón **apps-of-apps**) para Red Hat OpenShift AI 3.4 y Models-as-a-Service.
+Documento de arquitectura de [`surtecnologias/rhoai-gitops`](https://github.com/surtecnologias/rhoai-gitops): fuente de verdad GitOps (Argo CD + Kustomize, patrón **apps-of-apps**) para Red Hat OpenShift AI 3.4 y Models-as-a-Service.
 
 Los hechos de runtime se contrastaron el 26 de agosto de 2026 contra el laboratorio OpenTLC (`cluster-zd9hr`, sandbox1414), donde la Application raíz `rhoai-opentlc-root` reconcilia `clusters/opentlc/apps` de este repositorio (`targetRevision: main`). El overlay `ocpai-prd-mtz` está declarado aquí y no está desplegado en ese contexto.
 
 | Dato | Valor |
 | --- | --- |
-| Remoto canónico | `https://github.com/abelluque/rhoai-gitops.git` |
+| Remoto canónico | `https://github.com/surtecnologias/rhoai-gitops.git` |
 | Application raíz lab | `rhoai-opentlc-root` → `clusters/opentlc/apps` |
 | Application raíz prod | `rhoai-ocpai-prd-mtz-root` → `clusters/ocpai-prd-mtz/apps` |
 | AppProject | `rhoai` (wave −1) |
@@ -45,7 +45,7 @@ Overlays:
 | Overlay | Application raíz | Inferencia | Storage | Postgres MaaS | GPU Operator |
 | --- | --- | --- | --- | --- | --- |
 | `opentlc` | `bootstrap/opentlc-root-app.yaml` | Granite 3.1 2B CPU | `gp3-csi` | In-cluster | No |
-| `ocpai-prd-mtz` | `bootstrap/ocpai-prd-mtz-root-app.yaml` | Granite 8B, Qwen 32B, DeepSeek 33B en H200 | `nutanix-files-dynamic` | Externo (`existingSecret`) | NFD + NVIDIA |
+| `ocpai-prd-mtz` | `bootstrap/ocpai-prd-mtz-root-app.yaml` | Granite 8B, Qwen 32B, DeepSeek 33B en H200 | `ntnx-block` / `ntnx-files` | Externo (`existingSecret`) | NFD + NVIDIA |
 
 El overlay OpenTLC plantilla `maas.apps.cluster-6f7dh.6f7dh.sandbox3519.opentlc.com`. El clúster vivo observado es `cluster-zd9hr` (`router-default.apps.cluster-zd9hr.zd9hr.sandbox1414.opentlc.com`). El Route está Admitido; el hostname del spec no coincide con el DNS actual del sandbox.
 
@@ -443,7 +443,7 @@ rhoai-gitops/
 └── scripts/probe-maas.sh
 ```
 
-Cambio de remoto: sustituir `https://github.com/abelluque/rhoai-gitops.git` en `bootstrap/*-root-app.yaml`, `clusters/*/apps/appproject.yaml` y todas las Applications hijas. `targetRevision` por defecto: `main`.
+Cambio de remoto: sustituir `https://github.com/surtecnologias/rhoai-gitops.git` en `bootstrap/*-root-app.yaml`, `clusters/*/apps/appproject.yaml` y todas las Applications hijas. `targetRevision` por defecto: `main`.
 
 ---
 
@@ -456,4 +456,4 @@ Cambio de remoto: sustituir `https://github.com/abelluque/rhoai-gitops.git` en `
 5. **PVC WaitForFirstConsumer.** Claims sin consumer (`pipelines-artifacts`, notebooks) quedan Pending. `ignore-healthcheck` y Lua de salud de PVC viven en el Job de `platform-addons` / extraConfig de Argo CD, no en cada PVC del overlay lab (el live cluster sí tiene la anotación si se aplicó desde Helm).
 6. **ModelRegistry CR en wave 5.** Separado de `platform-addons` para no hacer dry-run contra un CRD inexistente. Spec: `kubeRBACProxy: {}` (CEL de RHOAI 3.4 prohíbe oauthProxy + kubeRBACProxy).
 7. **Hostname lab.** Actualizar Gateway y Route en `components/gateway-api` cuando el sandbox OpenTLC cambie (`6f7dh` → `zd9hr`).
-8. **Day-0 prod.** Labels/taints GPU, `ntnx-secret`, `nfsServerName`, `maas-db-config`, `hf-token` y placeholders MySQL/MinIO **antes** de que la wave 5/6 reconcilie.
+8. **Day-0 prod.** Labels/taints GPU, Secrets `maas-db-config`, `hf-token`, `model-registry-mysql` y `model-registry-minio` **antes** de que la wave 1/5/6 reconcilie. Storage: clases existentes `ntnx-block` y `ntnx-files`.

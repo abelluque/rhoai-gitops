@@ -11,7 +11,7 @@ metadata:
 spec:
   project: rhoai
   source:
-    repoURL: https://github.com/abelluque/rhoai-gitops.git
+    repoURL: https://github.com/surtecnologias/rhoai-gitops.git
     targetRevision: main
     path: components/observability-operators/overlays/opentlc
   destination:

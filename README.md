@@ -4,7 +4,7 @@ Este repositorio es la **fuente de verdad** para desplegar Red Hat OpenShift AI 
 
 Los manifiestos Kustomize versionados aquí describen el estado deseado. No es necesario un árbol Helm ni una ruta de sistema de archivos local para operar un cluster. El remoto canónico es:
 
-<https://github.com/abelluque/rhoai-gitops.git>
+<https://github.com/surtecnologias/rhoai-gitops.git>
 
 ## Propósito
 
@@ -43,7 +43,7 @@ Las Applications hijas apuntan a `components/<nombre>/overlays/<cluster>`. El ov
 | Overlay | Función | OpenShift | Cómputo de inferencia | Almacenamiento | PostgreSQL MaaS | GPU Operator | Modelos |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `opentlc` | Laboratorio | sandbox | CPU (`workload.rhoai.io/platform=true`) | `gp3-csi` | In-cluster | No | Granite 3.1 2B Instruct (SLM CPU) |
-| `ocpai-prd-mtz` | Producción | 4.22 | SuperMicro SYS-521GE-TNRT, 2 nodos × 6 GPU NVIDIA H200 | Nutanix Files (`nutanix-files-dynamic`) | Externo (`existingSecret: maas-db-config`) | NFD + NVIDIA GPU Operator | Granite 3.0 8B Instruct, Qwen2.5-Coder 32B FP8, DeepSeek-Coder 33B |
+| `ocpai-prd-mtz` | Producción | 4.22 | SuperMicro SYS-521GE-TNRT, 2 nodos × 6 GPU NVIDIA H200 | `ntnx-block` (RWO) y `ntnx-files` (RWX), ya presentes en el cluster | Externo (`existingSecret: maas-db-config`) | NFD + NVIDIA GPU Operator | Granite 3.0 8B Instruct, Qwen2.5-Coder 32B FP8, DeepSeek-Coder 33B |
 
 ### Laboratorio (`opentlc`)
 
@@ -53,9 +53,11 @@ Tres masters, workers CPU. Gateway MaaS publicado con Route sobre el Ingress del
 
 Topología de 11 nodos: 3 masters no schedulable, 3 infra VM, 3 workers virtuales y 2 SuperMicro GPU. Las cargas de plataforma (OpenShift AI, GitOps, Pipelines, RHCL, Authorino, Model Registry) usan el label `workload.rhoai.io/platform=true`. Los nodos GPU llevan taint `nvidia.com/gpu=true:NoSchedule`. La inferencia declara `nodeSelector` `nvidia.com/gpu.present=true`, recursos `nvidia.com/gpu` y HardwareProfiles `cpu-platform` y `gpu` (NVIDIA H200, máximo 6 GPU por perfil).
 
-El StorageClass `nutanix-files-dynamic` (CSI `csi.nutanix.com`, `NutanixFiles`) es la clase por defecto. El parámetro `nfsServerName` permanece en `CHANGE_ME` hasta que el operador lo sustituya por el nombre corto del File Server en Prism. El Secret CSI `ntnx-secret` debe existir en `openshift-cluster-csi-drivers`.
+El cluster ya tiene `ntnx-block` (RWO) y `ntnx-files` (RWX, el registry de imágenes está Bound ahí). Este overlay no crea un StorageClass nuevo ni lo marca como default. MySQL del registry usa `ntnx-block`. MinIO, notebooks y artefactos de Pipelines usan `ntnx-files`.
 
 PVCs previstos: MySQL del registry 20 Gi RWO, MinIO 200 Gi RWX, workbenches 50 Gi RWX, artefactos de Pipelines 100 Gi RWX.
+
+El hostname MaaS es `maas.apps.ocpai-prd-mtz.intranet.local`. NFD sigue el canal `stable` sin `startingCSV` (el pin `nfd.4.20` no existe en OpenShift 4.22). El NVIDIA Network Operator ya está instalado en el cluster y el puerto 400G quedó Active (firmware 28.43.1014); este repo no lo reinstala. MIG queda en `strategy: none`.
 
 ## Arquitectura de despliegue
 
@@ -164,12 +166,12 @@ Completar **antes** de que la wave 5 reconcilie MaaS:
 1. Confirmar cluster-admin en `ocpai-prd-mtz` (OpenShift 4.22).
 2. Etiquetar nodos de plataforma: `workload.rhoai.io/platform=true`.
 3. Aplicar taint GPU: `nvidia.com/gpu=true:NoSchedule` y label `nvidia.com/gpu.present=true` en los SuperMicro.
-4. Verificar el Secret CSI `ntnx-secret` y sustituir `nfsServerName` en el StorageClass del overlay.
+4. Confirmar `oc get storageclass` con `ntnx-block` y `ntnx-files`. Si no hay clase default, los PVC de este overlay igual nombran la clase. Los PVC que cree el operador RHOAI (monitoreo) usan la default: marcar `ntnx-block` si el cluster no tiene una.
 5. Crear el Secret `maas-db-config` en `redhat-ods-applications` con la clave `DB_CONNECTION_URL`. No versionar contraseñas de producción. Plantilla: `clusters/ocpai-prd-mtz/secrets/maas-db-config.yaml.example`.
-6. Sustituir los placeholders `CHANGE_ME` de MySQL y MinIO del Model Registry en `components/platform-addons/overlays/ocpai-prd-mtz` (o Secrets equivalentes).
+6. Crear los Secrets `model-registry-mysql` y `model-registry-minio` en `rhoai-model-registries` antes del sync. Plantillas: `clusters/ocpai-prd-mtz/secrets/`. No están en el overlay para que Argo no los pise.
 7. Tras existir el Namespace `ai-models`, crear el Secret `hf-token` (`clusters/ocpai-prd-mtz/secrets/hf-token.yaml.example`).
-8. Ajustar el hostname MaaS (`maas.apps.ocpai-prd-mtz.<baseDomain>`) en Gateway y Route si el dominio de aplicaciones no es `mtz.local`.
-9. Aprobar InstallPlans cuando `installPlanApproval` sea `Manual`.
+8. El hostname MaaS ya es `maas.apps.ocpai-prd-mtz.intranet.local`.
+9. Aprobar InstallPlans cuando `installPlanApproval` sea `Manual`. NFD aprueba el InstallPlan del canal `stable` de 4.22, o sale si el CSV ya está Succeeded.
 
 El overlay de producción **no** incluye el Secret de Postgres con credenciales reales. Argo CD no debe sobrescribir un Secret provisionado fuera de banda: el manifiesto GitOps documenta `existingSecret: maas-db-config` mediante un ConfigMap.
 
@@ -207,7 +209,7 @@ MODEL=granite-3-0-8b-instruct ./scripts/probe-maas.sh
 
 ## Cambio de repoURL
 
-Si el remoto Git no es el canónico, reemplazar `https://github.com/abelluque/rhoai-gitops.git` en:
+Si el remoto Git no es el canónico, reemplazar `https://github.com/surtecnologias/rhoai-gitops.git` en:
 
 - `bootstrap/opentlc-root-app.yaml`
 - `bootstrap/ocpai-prd-mtz-root-app.yaml`

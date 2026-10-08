@@ -17,14 +17,14 @@ spec:
   gatewayClassName: openshift-default
   listeners:
     - name: http
-      hostname: "maas.apps.ocpai-prd-mtz.mtz.local"
+      hostname: "maas.apps.ocpai-prd-mtz.intranet.local"
       port: 80
       protocol: HTTP
       allowedRoutes:
         namespaces:
           from: All
     - name: https
-      hostname: "maas.apps.ocpai-prd-mtz.mtz.local"
+      hostname: "maas.apps.ocpai-prd-mtz.intranet.local"
       port: 443
       protocol: HTTPS
       tls:

@@ -8,7 +8,7 @@ metadata:
 spec:
   description: OpenShift AI 3.4 + MaaS (apps-of-apps)
   sourceRepos:
-    - https://github.com/abelluque/rhoai-gitops.git
+    - https://github.com/surtecnologias/rhoai-gitops.git
     - '*'
   destinations:
     - namespace: '*'
