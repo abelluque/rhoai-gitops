@@ -20,6 +20,7 @@ Taint GPU: `nvidia.com/gpu=true:NoSchedule`. Host MaaS: `maas.apps.ocpai-prd-mtz
 - Gateway API mediante Ingress Operator (`openshift-default`). **No** se instala Service Mesh 3.
 - Wave 4 despliega PostgreSQL in-cluster en `redhat-ods-applications` (el mismo base del laboratorio). PVC `postgresql` de 5 Gi en `ntnx-block`. El Job `create-maas-db-config` crea el Secret `maas-db-config`.
 - PVCs sobre las clases que ya existen: MySQL en `ntnx-block` (RWO); MinIO, notebooks y pipelines en `ntnx-files` (RWX). No se crea `nutanix-files-dynamic`.
+- El Model Registry sigue con el Deployment, el Secret y el endpoint de Abel. La imagen ya no es `quay.io/minio/minio`: ese repositorio dejó de ser público el 24 de septiembre de 2026. La imagen es `docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z`, el mismo servidor S3, con `MINIO_ROOT_USER`, `server /data` y el PVC de antes. No es una imagen de Red Hat.
 - Tres `LLMInferenceService` en GPU: `granite-3-0-8b-instruct`, `qwen25-coder-32b`, `deepseek-coder-33b`.
 - HardwareProfiles `cpu-platform` y `gpu` (NVIDIA H200).
 

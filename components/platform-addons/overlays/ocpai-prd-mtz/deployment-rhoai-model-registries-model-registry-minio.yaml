@@ -22,7 +22,7 @@ spec:
         workload.rhoai.io/platform: "true"
       containers:
         - name: minio
-          image: quay.io/minio/minio:RELEASE.2024-12-18T13-15-44Z
+          image: docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z
           args:
             - server
             - /data
