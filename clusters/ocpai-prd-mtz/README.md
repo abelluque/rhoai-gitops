@@ -17,7 +17,7 @@ Taint GPU: `nvidia.com/gpu=true:NoSchedule`. Host MaaS: `maas.apps.ocpai-prd-mtz
 
 - Wave 2 incluye `nvidia-gpu-enablement` (NFD canal `stable` sin CSV pineado + NVIDIA GPU Operator). MIG `strategy: none`. El NVIDIA Network Operator ya corre en el cluster (puerto 400G Active, firmware 28.43.1014) y no se reinstala desde acá.
 - Gateway API mediante Ingress Operator (`openshift-default`). **No** se instala Service Mesh 3.
-- Wave 4 no despliega PostgreSQL in-cluster. Secret `maas-db-config` provisionado fuera de banda. Véase `secrets/`.
+- Wave 4 despliega PostgreSQL in-cluster en `redhat-ods-applications` (el mismo base del laboratorio). PVC `postgresql` de 5 Gi en `ntnx-block`. El Job `create-maas-db-config` crea el Secret `maas-db-config`.
 - PVCs sobre las clases que ya existen: MySQL en `ntnx-block` (RWO); MinIO, notebooks y pipelines en `ntnx-files` (RWX). No se crea `nutanix-files-dynamic`.
 - Tres `LLMInferenceService` en GPU: `granite-3-0-8b-instruct`, `qwen25-coder-32b`, `deepseek-coder-33b`.
 - HardwareProfiles `cpu-platform` y `gpu` (NVIDIA H200).

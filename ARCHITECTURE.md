@@ -120,7 +120,7 @@ Cada ISVC declara `router.gateway.refs` hacia `maas-default-gateway` en `openshi
 | --- | --- | --- | --- |
 | `rhcl` | `components/rhcl/overlays/<cluster>` | `kuadrant-system` | Operador Connectivity Link. Jobs: `apply-kuadrant`, `patch-rhcl-csv` (`ISTIO_GATEWAY_CONTROLLER_NAMES` incluye `openshift.io/gateway-controller/v1`), Authorino TLS/Service, console plugin. |
 | `gateway-api` | `components/gateway-api/overlays/<cluster>` | `openshift-ingress` | `GatewayClass` `openshift-default`, Gateway `maas-default-gateway`, Route reencrypt, ConfigMap `default-gateway-config`. |
-| `maas-postgres` | `components/maas-postgres/overlays/<cluster>` | `redhat-ods-applications` | Lab: Deployment Postgres + Job `create-maas-db-config`. Prod: ConfigMap de wiring; Secret real fuera de banda (`clusters/ocpai-prd-mtz/secrets/*.example`). |
+| `maas-postgres` | `components/maas-postgres/overlays/<cluster>` | `redhat-ods-applications` | Deployment Postgres + Job `create-maas-db-config` en lab y en prod. Prod fija el PVC en `ntnx-block`. |
 | `maas-subscriptions` | `components/maas-subscriptions/overlays/<cluster>` | `models-as-a-service` | `MaaSAuthPolicy`, `MaaSSubscription`, `MaaSModelRef`, Job `patch-tenant-telemetry`. |
 
 **No hay AuthPolicy Kuadrant en Git.** El `maas-controller` (operand RHOAI) las materializa cuando existen el ISVC, el ModelRef y la suscripción. En el lab se observó:
@@ -399,7 +399,7 @@ No versionar: `HF_TOKEN`, URLs de Postgres con password, kubeconfigs. Plantillas
 | leaderworkerset | `openshift-lws-operator` | Subscription, Job apply LWS | SM `lws-controller-manager-metrics-monitor` |
 | rhcl | `kuadrant-system` | Subscription RHCL, Jobs Kuadrant/Authorino | SM Authorino / Kuadrant / Limitador operator; PodMonitor Limitador |
 | gateway-api | `openshift-ingress` | GatewayClass, Gateway, Route, ConfigMap | PodMonitor `istio-pod-monitor`; Telemetry / TelemetryPolicy (chart openshift-ai) |
-| maas-postgres | `redhat-ods-applications` | Postgres lab **o** ConfigMap wiring prod | — |
+| maas-postgres | `redhat-ods-applications` | Postgres in-cluster (lab y prod) | — |
 | openshift-ai | `redhat-ods-operator` | Subscription, Jobs DSC/DSCI/dashboard, HardwareProfiles, monitoring CM | DSC conditions; SM `odh-model-controller`, `model-serving-api-metrics`; PodMonitor `maas-controller-metrics` |
 | model-registry-cr | `rhoai-model-registries` | ModelRegistry `rhoai-registry` (`kubeRBACProxy`) | kube-rbac-proxy del registry |
 | llmisvc-* | `ai-models` | LLMInferenceService, Namespace | PodMonitor `kserve-llm-isvc-vllm-engine`; SM scheduler |
@@ -451,9 +451,9 @@ Cambio de remoto: sustituir `https://github.com/surtecnologias/rhoai-gitops.git`
 
 1. **GitOps es la fuente de verdad operativa.** Helm (`rhoai-helm`) es generador opcional. Regenerar con `import-from-helm.sh` **sobrescribe** `components/`.
 2. **Sin Service Mesh 3.** El Ingress Operator programa `openshift-default`. Una suscripción SM3 duplica CRDs Istio y deja el Gateway sin programar.
-3. **Overlay prod autosuficiente.** No hay `bases:` hacia el lab: hardware, StorageClass, modelos y Postgres externo se declaran enteros en `overlays/ocpai-prd-mtz`.
+3. **Overlay prod autosuficiente.** No hay `bases:` hacia el overlay de laboratorio: hardware, StorageClass y modelos se declaran en `overlays/ocpai-prd-mtz`. Postgres de MaaS sí usa `components/maas-postgres/base` (el mismo Deployment in-cluster).
 4. **Chicken-and-egg de RBAC.** Aplicar el ClusterRoleBinding de bootstrap como usuario cluster-admin antes de la Application raíz.
 5. **PVC WaitForFirstConsumer.** Claims sin consumer (`pipelines-artifacts`, notebooks) quedan Pending. `ignore-healthcheck` y Lua de salud de PVC viven en el Job de `platform-addons` / extraConfig de Argo CD, no en cada PVC del overlay lab (el live cluster sí tiene la anotación si se aplicó desde Helm).
 6. **ModelRegistry CR en wave 5.** Separado de `platform-addons` para no hacer dry-run contra un CRD inexistente. Spec: `kubeRBACProxy: {}` (CEL de RHOAI 3.4 prohíbe oauthProxy + kubeRBACProxy).
 7. **Hostname lab.** Actualizar Gateway y Route en `components/gateway-api` cuando el sandbox OpenTLC cambie (`6f7dh` → `zd9hr`).
-8. **Day-0 prod.** Labels/taints GPU, Secrets `maas-db-config`, `hf-token`, `model-registry-mysql` y `model-registry-minio` **antes** de que la wave 1/5/6 reconcilie. Storage: clases existentes `ntnx-block` y `ntnx-files`.
+8. **Day-0 prod.** Labels/taints GPU y Secrets `hf-token`, `model-registry-mysql` y `model-registry-minio` **antes** de que la wave 1/5/6 reconcilie. `maas-db-config` lo crea el Job de la wave 4. Storage: clases existentes `ntnx-block` y `ntnx-files`.

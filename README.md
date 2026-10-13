@@ -43,7 +43,7 @@ Las Applications hijas apuntan a `components/<nombre>/overlays/<cluster>`. El ov
 | Overlay | Función | OpenShift | Cómputo de inferencia | Almacenamiento | PostgreSQL MaaS | GPU Operator | Modelos |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `opentlc` | Laboratorio | sandbox | CPU (`workload.rhoai.io/platform=true`) | `gp3-csi` | In-cluster | No | Granite 3.1 2B Instruct (SLM CPU) |
-| `ocpai-prd-mtz` | Producción | 4.22 | SuperMicro SYS-521GE-TNRT, 2 nodos × 6 GPU NVIDIA H200 | `ntnx-block` (RWO) y `ntnx-files` (RWX), ya presentes en el cluster | Externo (`existingSecret: maas-db-config`) | NFD + NVIDIA GPU Operator | Granite 3.0 8B Instruct, Qwen2.5-Coder 32B FP8, DeepSeek-Coder 33B |
+| `ocpai-prd-mtz` | Producción | 4.22 | SuperMicro SYS-521GE-TNRT, 2 nodos × 6 GPU NVIDIA H200 | `ntnx-block` (RWO) y `ntnx-files` (RWX), ya presentes en el cluster | In-cluster (PVC `ntnx-block`) | NFD + NVIDIA GPU Operator | Granite 3.0 8B Instruct, Qwen2.5-Coder 32B FP8, DeepSeek-Coder 33B |
 
 ### Laboratorio (`opentlc`)
 
@@ -136,7 +136,7 @@ Argo CD aplica las Applications hijas según `argocd.argoproj.io/sync-wave`. Los
 | 2 | `leaderworkerset` | `openshift-lws-operator` | Sí | Sí |
 | 2 | `rhcl` | `kuadrant-system` | Sí | Sí |
 | 3 | `gateway-api` | `openshift-ingress` | Sí | Sí |
-| 4 | `maas-postgres` | `redhat-ods-applications` | Postgres in-cluster | Solo wiring externo |
+| 4 | `maas-postgres` | `redhat-ods-applications` | Postgres in-cluster | Postgres in-cluster |
 | 5 | `openshift-ai` | `redhat-ods-operator` | Sí | Sí (RHOAI 3.4, canal `stable-3.x`) |
 | 5 | `model-registry-cr` | `rhoai-model-registries` | Sí | Sí (ModelRegistry CR tras las CRD del operador) |
 | 6 | Modelos (`llmisvc-*`) | `ai-models` | `llmisvc-granite` (CPU) | `llmisvc-granite-8b`, `llmisvc-qwen25-coder-32b`, `llmisvc-deepseek-coder-33b` |
@@ -167,13 +167,13 @@ Completar **antes** de que la wave 5 reconcilie MaaS:
 2. Etiquetar nodos de plataforma: `workload.rhoai.io/platform=true`.
 3. Aplicar taint GPU: `nvidia.com/gpu=true:NoSchedule` y label `nvidia.com/gpu.present=true` en los SuperMicro.
 4. Confirmar `oc get storageclass` con `ntnx-block` y `ntnx-files`. Si no hay clase default, los PVC de este overlay igual nombran la clase. Los PVC que cree el operador RHOAI (monitoreo) usan la default: marcar `ntnx-block` si el cluster no tiene una.
-5. Crear el Secret `maas-db-config` en `redhat-ods-applications` con la clave `DB_CONNECTION_URL`. No versionar contraseñas de producción. Plantilla: `clusters/ocpai-prd-mtz/secrets/maas-db-config.yaml.example`.
+5. Wave 4 despliega PostgreSQL en `redhat-ods-applications` y el Job `create-maas-db-config` crea el Secret `maas-db-config`. No hace falta un Postgres externo.
 6. Crear los Secrets `model-registry-mysql` y `model-registry-minio` en `rhoai-model-registries` antes del sync. Plantillas: `clusters/ocpai-prd-mtz/secrets/`. No están en el overlay para que Argo no los pise.
 7. Tras existir el Namespace `ai-models`, crear el Secret `hf-token` (`clusters/ocpai-prd-mtz/secrets/hf-token.yaml.example`).
 8. El hostname MaaS ya es `maas.apps.ocpai-prd-mtz.intranet.local`.
 9. Aprobar InstallPlans cuando `installPlanApproval` sea `Manual`. NFD aprueba el InstallPlan del canal `stable` de 4.22, o sale si el CSV ya está Succeeded.
 
-El overlay de producción **no** incluye el Secret de Postgres con credenciales reales. Argo CD no debe sobrescribir un Secret provisionado fuera de banda: el manifiesto GitOps documenta `existingSecret: maas-db-config` mediante un ConfigMap.
+El overlay de producción usa el mismo Postgres in-cluster que el laboratorio (`components/maas-postgres/base`). El PVC queda en `ntnx-block`. El Job escribe `maas-db-config` después de que el Deployment `postgres` esté listo.
 
 ### 3. Aplicar el RBAC de bootstrap y la Application raíz
 

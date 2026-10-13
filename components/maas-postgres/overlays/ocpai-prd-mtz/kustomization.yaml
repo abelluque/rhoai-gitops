@@ -2,4 +2,6 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - namespace-redhat-ods-applications.yaml
-  - configmap-redhat-ods-applications-maas-postgres-external.yaml
+  - ../../base
+patches:
+  - path: persistentvolumeclaim-redhat-ods-applications-postgresql.yaml
