@@ -14,4 +14,3 @@ spec:
   name: rhcl-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: rhcl-operator.v1.3.4
