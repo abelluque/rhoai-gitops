@@ -1,13 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- clusterrole-patch-pipelines-placement.yaml
-- clusterrolebinding-patch-pipelines-placement.yaml
-- configmap-openshift-operators-patch-pipelines-placement-script.yaml
 - deployment-rhoai-model-registries-model-registry-minio.yaml
 - deployment-rhoai-model-registries-model-registry-mysql.yaml
 - imagestream-rhoai-model-registries-silo.yaml
-- job-openshift-operators-patch-pipelines-placement.yaml
 - namespace-openshift-gitops-operator.yaml
 - namespace-openshift-gitops.yaml
 - namespace-openshift-operators.yaml
@@ -21,6 +17,6 @@ resources:
 - persistentvolumeclaim-rhods-notebooks-rhods-notebooks-shared.yaml
 - service-rhoai-model-registries-model-registry-minio.yaml
 - service-rhoai-model-registries-model-registry-mysql.yaml
-- serviceaccount-openshift-operators-patch-pipelines-placement.yaml
 - subscription-openshift-gitops-operator-openshift-gitops-operator.yaml
 - subscription-openshift-operators-openshift-pipelines-operator-rh.yaml
+- tektonconfig-config.yaml
