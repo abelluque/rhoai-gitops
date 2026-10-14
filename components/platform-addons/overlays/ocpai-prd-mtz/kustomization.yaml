@@ -3,11 +3,9 @@ kind: Kustomization
 resources:
 - clusterrole-patch-pipelines-placement.yaml
 - clusterrolebinding-patch-pipelines-placement.yaml
-- configmap-openshift-gitops-patch-gitops-placement-script.yaml
 - configmap-openshift-operators-patch-pipelines-placement-script.yaml
 - deployment-rhoai-model-registries-model-registry-minio.yaml
 - deployment-rhoai-model-registries-model-registry-mysql.yaml
-- job-openshift-gitops-patch-gitops-placement.yaml
 - job-openshift-operators-patch-pipelines-placement.yaml
 - namespace-openshift-gitops-operator.yaml
 - namespace-openshift-gitops.yaml
@@ -20,11 +18,8 @@ resources:
 - persistentvolumeclaim-rhoai-model-registries-model-registry-minio-data.yaml
 - persistentvolumeclaim-rhoai-model-registries-model-registry-mysql-data.yaml
 - persistentvolumeclaim-rhods-notebooks-rhods-notebooks-shared.yaml
-- role-openshift-gitops-patch-gitops-placement.yaml
-- rolebinding-openshift-gitops-patch-gitops-placement.yaml
 - service-rhoai-model-registries-model-registry-minio.yaml
 - service-rhoai-model-registries-model-registry-mysql.yaml
-- serviceaccount-openshift-gitops-patch-gitops-placement.yaml
 - serviceaccount-openshift-operators-patch-pipelines-placement.yaml
 - subscription-openshift-gitops-operator-openshift-gitops-operator.yaml
 - subscription-openshift-operators-openshift-pipelines-operator-rh.yaml
