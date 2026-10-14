@@ -11,51 +11,62 @@ metadata:
 data:
   approve-operator.sh: |-
     #!/bin/bash
-    
+
+    # Approves only the initial InstallPlan. Once the Subscription has an
+    # installedCSV, any pending InstallPlan is an upgrade and stays for a human
+    # to approve (installPlanApproval: Manual).
+
     NAMESPACE="redhat-ods-operator"
+    SUBSCRIPTION="rhods-operator"
     WAIT_TIMEOUT="${WAIT_TIMEOUT:-240}"
-    
+
     function approve_install_plan {
       set -x
       oc patch installplan "$1" -n "${NAMESPACE}" --patch '{"spec": {"approved": true}}' --type merge
       { set +x ; } 2>/dev/null
     }
-    
-    function find_install_plans {
-      oc get installplan -n "${NAMESPACE}" \
-        -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.clusterServiceVersionNames}{"\n"}{end}' 2>/dev/null \
-        | while IFS=$'\t' read -r name csvs; do
-            [ -z "${name}" ] && continue
-            for csv in rhods-operator.3.4.0; do
-              case " ${csvs} " in
-                *"${csv}"*) echo "${name}" ;;
-              esac
-            done
-          done
+
+    function installed_csv {
+      oc get subscription "${SUBSCRIPTION}" -n "${NAMESPACE}" -o jsonpath='{.status.installedCSV}' 2>/dev/null
     }
-    
-    echo "Waiting up to ${WAIT_TIMEOUT}s for InstallPlan (rhods-operator.3.4.0) in ${NAMESPACE}"
+
+    function list_install_plans {
+      oc get installplan -n "${NAMESPACE}" \
+        -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.approved}{"\n"}{end}' 2>/dev/null
+    }
+
+    echo "Waiting up to ${WAIT_TIMEOUT}s for the initial InstallPlan of ${SUBSCRIPTION} in ${NAMESPACE}"
     elapsed=0
     while true; do
-      install_plans=( $(find_install_plans) )
-      if [ "${#install_plans[@]}" -gt 0 ]; then
+      installed=$(installed_csv)
+      if [ -n "${installed}" ]; then
+        echo "Subscription ${SUBSCRIPTION} already has ${installed}; pending InstallPlans are upgrades and need manual approval"
+        exit 0
+      fi
+      pending=()
+      approved_any=false
+      while IFS=$'\t' read -r name approved; do
+        [ -z "${name}" ] && continue
+        if [ "${approved}" = "true" ]; then
+          approved_any=true
+        else
+          pending+=("${name}")
+        fi
+      done < <(list_install_plans)
+      if [ "${#pending[@]}" -gt 0 ]; then
         echo
-        for install_plan in "${install_plans[@]}"; do
-          if [ -z "$install_plan" ]; then
-            continue
-          fi
-          approved=$(oc get installplan "$install_plan" -n "${NAMESPACE}" -o jsonpath='{.spec.approved}')
-          if [ "$approved" != "true" ]; then
-            approve_install_plan "$install_plan"
-          else
-            echo "InstallPlan ${install_plan} already approved"
-          fi
+        for install_plan in "${pending[@]}"; do
+          approve_install_plan "${install_plan}"
         done
         exit 0
       fi
+      if [ "${approved_any}" = "true" ]; then
+        echo "Initial InstallPlan already approved; waiting on OLM to install it"
+        exit 0
+      fi
       if [ "${elapsed}" -ge "${WAIT_TIMEOUT}" ]; then
-        echo "Timed out after ${WAIT_TIMEOUT}s waiting for InstallPlan for: rhods-operator.3.4.0" >&2
-        echo "Pinned startingCSV is often missing from this cluster's catalog." >&2
+        echo "Timed out after ${WAIT_TIMEOUT}s waiting for the initial InstallPlan of ${SUBSCRIPTION} in ${NAMESPACE}" >&2
+        echo "If the Subscription shows ResolutionFailed, its startingCSV is probably missing from the catalog." >&2
         oc get subscription,installplan,csv -n "${NAMESPACE}" >&2 || true
         exit 1
       fi
