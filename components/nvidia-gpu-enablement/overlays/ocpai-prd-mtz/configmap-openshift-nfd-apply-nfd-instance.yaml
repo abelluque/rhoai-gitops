@@ -38,7 +38,10 @@ data:
     MANIFEST="/config/nodefeaturediscovery.yaml"
     
     echo "Waiting for NodeFeatureDiscovery API..."
-    until oc apply -f "${MANIFEST}" >/dev/null 2>&1; do
+    attempt=0
+    until oc apply -f "${MANIFEST}"; do
+      attempt=$((attempt + 1))
+      echo "Attempt ${attempt} failed. Retrying in 10s..."
       sleep 10
     done
     
