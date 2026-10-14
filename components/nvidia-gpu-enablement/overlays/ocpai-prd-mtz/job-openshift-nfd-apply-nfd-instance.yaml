@@ -10,6 +10,8 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
 spec:
   backoffLimit: 12
+  # A hung hook keeps the sync in "Running PostSync hook" with no error to diagnose.
+  activeDeadlineSeconds: 600
   template:
     spec:
       serviceAccountName: apply-nfd-instance
