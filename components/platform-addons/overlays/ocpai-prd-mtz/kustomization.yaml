@@ -6,6 +6,7 @@ resources:
 - configmap-openshift-operators-patch-pipelines-placement-script.yaml
 - deployment-rhoai-model-registries-model-registry-minio.yaml
 - deployment-rhoai-model-registries-model-registry-mysql.yaml
+- imagestream-rhoai-model-registries-silo.yaml
 - job-openshift-operators-patch-pipelines-placement.yaml
 - namespace-openshift-gitops-operator.yaml
 - namespace-openshift-gitops.yaml

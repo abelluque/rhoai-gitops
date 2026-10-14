@@ -1,0 +1,15 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: silo
+  namespace: rhoai-model-registries
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  tags:
+    - name: RELEASE.2026-09-16T00-00-00Z
+      from:
+        kind: DockerImage
+        name: docker.io/pgsty/silo@sha256:39aab3c365848e32aca7b76c5b57f86d1cbca02d7b8f24e1fd1feff9fedddae5
+      referencePolicy:
+        type: Local
