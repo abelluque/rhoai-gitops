@@ -6,9 +6,6 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-options: ServerSideApply=true,Prune=false,Delete=false
 spec:
-  nodePlacement:
-    nodeSelector:
-      workload.rhoai.io/platform: "true"
   rbac:
     defaultPolicy: role:readonly
     scopes: "[groups,name]"

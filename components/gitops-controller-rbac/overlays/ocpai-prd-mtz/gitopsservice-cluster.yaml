@@ -1,0 +1,9 @@
+apiVersion: pipelines.openshift.io/v1alpha1
+kind: GitopsService
+metadata:
+  name: cluster
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true,Prune=false,Delete=false
+spec:
+  nodeSelector:
+    workload.rhoai.io/platform: "true"
