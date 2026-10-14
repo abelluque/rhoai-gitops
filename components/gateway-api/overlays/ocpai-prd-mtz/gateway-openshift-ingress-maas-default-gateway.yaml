@@ -15,6 +15,11 @@ metadata:
     opendatahub.io/managed: "false"
 spec:
   gatewayClassName: openshift-default
+  infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: default-gateway-config
   listeners:
     - name: http
       hostname: "maas.apps.ocpai-prd-mtz.intranet.local"
