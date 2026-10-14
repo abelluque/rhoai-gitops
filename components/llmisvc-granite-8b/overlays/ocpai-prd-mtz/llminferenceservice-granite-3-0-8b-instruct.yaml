@@ -29,6 +29,21 @@ spec:
     route: {}
     scheduler: {}
   template:
+    initContainers:
+      - name: storage-initializer
+        env:
+          - name: HTTP_PROXY
+            value: http://10.214.130.110:80
+          - name: HTTPS_PROXY
+            value: http://10.214.130.110:80
+          - name: NO_PROXY
+            value: 127.0.0.1,localhost,.intranet.local,.ardp.local,.svc,.cluster.local
+          - name: http_proxy
+            value: http://10.214.130.110:80
+          - name: https_proxy
+            value: http://10.214.130.110:80
+          - name: no_proxy
+            value: 127.0.0.1,localhost,.intranet.local,.ardp.local,.svc,.cluster.local
     containers:
       - name: main
         image: registry.redhat.io/rhaiis/vllm-cuda-rhel9:3.3.1
