@@ -1,0 +1,128 @@
+# Counts usage.total_tokens against the Limitador limits the MaaS
+# subscriptions already define, and answers 429 on the next request.
+# Kuadrant's wasm plugin never reports the body, so this filter does.
+# One counter per model, shared by every caller: the gateway no longer
+# has the caller identity in the Authorization header at this point.
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: granite-t11-count
+  namespace: openshift-ingress
+spec:
+  workloadSelector:
+    labels:
+      gateway.networking.k8s.io/gateway-name: maas-default-gateway
+  configPatches:
+    - applyTo: CLUSTER
+      match:
+        context: GATEWAY
+      patch:
+        operation: ADD
+        value:
+          name: t11-limitador
+          connect_timeout: 1s
+          type: STRICT_DNS
+          lb_policy: ROUND_ROBIN
+          load_assignment:
+            cluster_name: t11-limitador
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address:
+                          address: limitador-limitador.kuadrant-system.svc.cluster.local
+                          port_value: 8080
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+              subFilter:
+                name: envoy.filters.http.router
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.lua
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+            inlineCode: |
+              local routes = {
+                {
+                  path = "/ai-models/granite-3-0-8b-instruct/",
+                  model = "granite-3-0-8b-instruct",
+                  ns = "ai-models/granite-3-0-8b-instruct-kserve-route",
+                  key = "tokenlimit.models_as_a_service_free_models_subscription_granite_3_0_8b_instruct_tokens__0152d99b"
+                },
+                {
+                  path = "/ai-models/qwen25-coder-32b/",
+                  model = "qwen25-coder-32b",
+                  ns = "ai-models/qwen25-coder-32b-kserve-route",
+                  key = "tokenlimit.models_as_a_service_premium_models_subscription_qwen25_coder_32b_tokens__ee3989b3"
+                },
+                {
+                  path = "/ai-models/deepseek-coder-33b/",
+                  model = "deepseek-coder-33b",
+                  ns = "ai-models/deepseek-coder-33b-kserve-route",
+                  key = "tokenlimit.models_as_a_service_premium_models_subscription_deepseek_coder_33b_tokens__54fe0a8f"
+                }
+              }
+              local function route_for(path)
+                for _, route in ipairs(routes) do
+                  if string.find(path, route.path, 1, true) then
+                    return route
+                  end
+                end
+              end
+              local function route_in(body)
+                for _, route in ipairs(routes) do
+                  if string.find(body, route.model, 1, true) then
+                    return route
+                  end
+                end
+              end
+              local function pay(route, user, delta)
+                return '{"namespace":"' .. route.ns .. '","delta":' .. delta .. ',"values":{"' .. route.key .. '":"1","auth.identity.userid":"' .. user .. '"}}'
+              end
+              function envoy_on_request(h)
+                local path = h:headers():get(":path") or ""
+                local route = route_for(path)
+                if route == nil then
+                  return
+                end
+                local user = h:headers():get("authorization") or "anon"
+                user = string.gsub(user, string.char(34), "")
+                h:streamInfo():dynamicMetadata():set("envoy.lua", "t11", user)
+                local hdrs, _body = h:httpCall("t11-limitador", {
+                  [":method"] = "POST",
+                  [":path"] = "/check",
+                  [":authority"] = "limitador",
+                  ["content-type"] = "application/json"
+                }, pay(route, user, 1), 1000)
+                if hdrs ~= nil and hdrs[":status"] == "429" then
+                  h:respond({[":status"] = "429", ["content-type"] = "application/json"}, "{}")
+                end
+              end
+              function envoy_on_response(h)
+                local md = h:streamInfo():dynamicMetadata():get("envoy.lua")
+                if md == nil or md["t11"] == nil then
+                  return
+                end
+                local buf = h:body()
+                if buf == nil or buf:length() == 0 then
+                  return
+                end
+                local body = buf:getBytes(0, buf:length())
+                local route = route_in(body)
+                local tok = string.match(body, '"total_tokens"%s*:%s*(%d+)')
+                if route == nil or tok == nil then
+                  return
+                end
+                h:httpCall("t11-limitador", {
+                  [":method"] = "POST",
+                  [":path"] = "/report",
+                  [":authority"] = "limitador",
+                  ["content-type"] = "application/json"
+                }, pay(route, md["t11"], tok), 1000)
+              end

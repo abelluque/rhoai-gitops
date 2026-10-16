@@ -5,3 +5,4 @@ resources:
 - gateway-openshift-ingress-maas-default-gateway.yaml
 - gatewayclass-openshift-default.yaml
 - route-openshift-ingress-maas-default-gateway.yaml
+- envoyfilter-openshift-ingress-maas-token-count.yaml
