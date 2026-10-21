@@ -3,6 +3,11 @@
 # Kuadrant's wasm plugin never reports the body, so this filter does.
 # One counter per model, shared by every caller: the gateway no longer
 # has the caller identity in the Authorization header at this point.
+#
+# Guardrails from the workshop paper, on the three MaaS chats only.
+# The built-in detector matches text. It does not check CUIT modulo 11,
+# CBU check digits, or a separate Luhn step. If the detector does not
+# answer, the chat continues. Streaming responses are not rewritten.
 apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
@@ -31,6 +36,25 @@ spec:
                       address:
                         socket_address:
                           address: limitador-limitador.kuadrant-system.svc.cluster.local
+                          port_value: 8080
+    - applyTo: CLUSTER
+      match:
+        context: GATEWAY
+      patch:
+        operation: ADD
+        value:
+          name: t12-guardrails
+          connect_timeout: 1s
+          type: STRICT_DNS
+          lb_policy: ROUND_ROBIN
+          load_assignment:
+            cluster_name: t12-guardrails
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address:
+                          address: guardrails-orchestrator-service.rhoai-guardrails.svc.cluster.local
                           port_value: 8080
     - applyTo: HTTP_FILTER
       match:
@@ -68,6 +92,52 @@ spec:
                   key = "tokenlimit.models_as_a_service_premium_models_subscription_deepseek_coder_33b_tokens__54fe0a8f"
                 }
               }
+              local block_in = {
+                [[(?i)\b(?:CVV|CVC|c[oó]digo\s+de\s+seguridad)\s*[:#=-]?\s*(\d{3,4})\b]],
+                [[(?i)\b(?:clave|password|contrase[nñ]a|passphrase|PIN|token)\s*[:=]\s*(\S{4,128})\b]],
+                [[(?i)\bBearer\s+[A-Za-z0-9._~+/-]+=*\b]],
+                [[(?i)\b(?:api[_-]?key|access[_-]?token|client[_-]?secret|secret[_-]?key)\s*[:=]\s*["']?([A-Za-z0-9._~+/-]{12,})["']?]],
+                [[(?i)\b(ignore|disregard|forget|override)\b.{0,40}\b(previous|prior|above|system|developer)\b.{0,30}\b(instructions?|rules?|prompt|policy)\b]],
+                [[(?i)\b(ignor[aá]|olvid[aá]|anul[aá]|descart[aá]|sobrescrib[ei])\b.{0,40}\b(?:las?\s+)?(?:instrucciones?|reglas?|pol[ií]ticas?)\b.{0,30}\b(?:anteriores?|previas?|del\s+sistema|del\s+desarrollador)\b]],
+                [[(?i)\b(reveal|show|print|repeat|expose|dump|display)\b.{0,40}\b(system|developer|hidden|internal)\b.{0,20}\b(prompt|instructions?|policy|configuration)\b]],
+                [[(?i)\b(trata|interpreta|considera|ejecuta)\b.{0,30}\b(?:el\s+)?(?:siguiente\s+)?(?:texto|documento|contenido|resultado)\b.{0,30}\bcomo\b.{0,20}\binstrucciones?\b]],
+                [[(?i)\b(bypass|evade|disable|circumvent|remove|deactivate)\b.{0,40}\b(safety|security|guardrail|filter|restriction|policy|control)\b]],
+                [[(?i)\b(evad[ei]|desactiv[aá]|elimin[aá]|omit[ei]|salt[aá]|anul[aá])\b.{0,40}\b(?:los?\s+)?(?:controles?|filtros?|guardrails?|restricciones?|pol[ií]ticas?)\b]],
+                [[(?i)\b(?:modo|mode)\b.{0,25}\b(?:sin\s+restricciones|sin\s+filtros|unrestricted|uncensored|unfiltered)\b]],
+                [[(?i)\b(act|pretend|roleplay|simulate|imagina|act[uú]a|finge|simula)\b.{0,60}\b(unrestricted|uncensored|unfiltered|sin\s+restricciones|sin\s+filtros)\b]]
+              }
+              local mask_in = {
+                "email",
+                "credit-card",
+                [[(?i)\b(?:DNI|documento)(?:\s*(?:nro|n[uú]mero|n[°º])\s*)?[:#-]?\s*(\d{1,2}(?:[.\s]?\d{3}){2}|\d{7,8})\b]],
+                [[(?i)\b(?:CUIT|CUIL)(?:\s*(?:nro|n[uú]mero|n[°º])\s*)?[:#-]?\s*(\d{2}[-\s]?\d{8}[-\s]?\d)\b]],
+                [[(?i)\b(?:CBU|CVU)\s*[:#-]?\s*((?:\d[\s-]?){22})\b]],
+                [[(?i)\b(?:alias(?:\s+(?:CBU|CVU))?)\s*[:#-]?\s*([a-z0-9ñáéíóúü]+(?:[.-][a-z0-9ñáéíóúü]+){1,5})\b]],
+                [[(?i)\b(?:n[uú]mero\s+de\s+cuenta|nro\.?\s+de\s+cuenta|cuenta)\s*[:#-]?\s*(\d{6,20})\b]],
+                [[(?i)\b(?:tarjeta|card|PAN)\s*[:#-]?\s*((?:\d[ -]?){13,19})\b]]
+              }
+              local block_out = {
+                "credit-card",
+                [[(?i)\b(?:CVV|CVC|c[oó]digo\s+de\s+seguridad)\s*[:#=-]?\s*(\d{3,4})\b]],
+                [[(?i)\b(?:clave|password|contrase[nñ]a|passphrase|PIN|token)\s*[:=]\s*(\S{4,128})\b]],
+                [[(?i)\bBearer\s+[A-Za-z0-9._~+/-]+=*\b]],
+                [[(?i)\b(?:api[_-]?key|access[_-]?token|client[_-]?secret|secret[_-]?key)\s*[:=]\s*["']?([A-Za-z0-9._~+/-]{12,})["']?]],
+                [[(?i)\b(?:CUIT|CUIL)(?:\s*(?:nro|n[uú]mero|n[°º])\s*)?[:#-]?\s*(\d{2}[-\s]?\d{8}[-\s]?\d)\b]],
+                [[(?i)\b(?:CBU|CVU)\s*[:#-]?\s*((?:\d[\s-]?){22})\b]],
+                [[(?i)\b(?:tarjeta|card|PAN)\s*[:#-]?\s*((?:\d[ -]?){13,19})\b]]
+              }
+              local mask_out = {
+                "email",
+                [[(?i)\b(?:DNI|documento)(?:\s*(?:nro|n[uú]mero|n[°º])\s*)?[:#-]?\s*(\d{1,2}(?:[.\s]?\d{3}){2}|\d{7,8})\b]],
+                [[(?i)\b(?:alias(?:\s+(?:CBU|CVU))?)\s*[:#-]?\s*([a-z0-9ñáéíóúü]+(?:[.-][a-z0-9ñáéíóúü]+){1,5})\b]],
+                [[(?i)\b(?:n[uú]mero\s+de\s+cuenta|nro\.?\s+de\s+cuenta|cuenta)\s*[:#-]?\s*(\d{6,20})\b]]
+              }
+              local exfil = {
+                [[(?i)\b(send|post|upload|forward|email|export|exfiltrate|transmit)\b.{0,60}\b(secret|credential|token|customer|account|database|record|document|file)\b]],
+                [[(?i)\b(envi[aá]|sub[ií]|public[aá]|reenvi[aá]|export[aá]|transfer[ií]|transmit[ií])\b.{0,60}\b(secreto|credencial|token|cliente|cuenta|base\s+de\s+datos|registro|documento|archivo)\b]],
+                [[(?i)\b(curl|wget|Invoke-WebRequest|fetch|requests?\.(?:post|get))\b.{0,120}\bhttps?://]],
+                [[(?i)\bhttps?://(?:localhost|127(?:\.\d{1,3}){3}|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|169\.254\.169\.254)\b]]
+              }
               local function route_for(path)
                 for _, route in ipairs(routes) do
                   if string.find(path, route.path, 1, true) then
@@ -84,6 +154,99 @@ spec:
               end
               local function pay(route, user, delta)
                 return '{"namespace":"' .. route.ns .. '","delta":' .. delta .. ',"values":{"' .. route.key .. '":"1","auth.identity.userid":"' .. user .. '"}}'
+              end
+              local function jesc(s)
+                s = string.gsub(s, "\\", "\\\\")
+                s = string.gsub(s, '"', '\\"')
+                s = string.gsub(s, "\n", "\\n")
+                s = string.gsub(s, "\r", "\\r")
+                s = string.gsub(s, "\t", "\\t")
+                return s
+              end
+              local function detect_body(text, patterns)
+                local parts = {}
+                for _, pattern in ipairs(patterns) do
+                  parts[#parts + 1] = '"' .. jesc(pattern) .. '"'
+                end
+                return '{"contents":["' .. jesc(text) .. '"],"detector_params":{"regex":[' .. table.concat(parts, ",") .. ']}}'
+              end
+              local function hit(resp)
+                return resp ~= nil and string.find(resp, '"start"', 1, true) ~= nil
+              end
+              local function detect(h, st, text, patterns)
+                if st.down or text == nil or #text == 0 or #text > 100000 then
+                  return nil
+                end
+                local hdrs, body = h:httpCall("t12-guardrails", {
+                  [":method"] = "POST",
+                  [":path"] = "/api/v1/text/contents",
+                  [":authority"] = "guardrails-orchestrator",
+                  ["content-type"] = "application/json",
+                  ["detector-id"] = "regex"
+                }, detect_body(text, patterns), 800)
+                if hdrs == nil then
+                  st.down = true
+                  return nil
+                end
+                if hdrs[":status"] ~= "200" then
+                  return nil
+                end
+                return body
+              end
+              local function mask_text(text, resp)
+                local spans = {}
+                for s, e in string.gmatch(resp, '"start"%s*:%s*(%d+)%s*,%s*"end"%s*:%s*(%d+)') do
+                  spans[#spans + 1] = {tonumber(s), tonumber(e)}
+                end
+                table.sort(spans, function(a, b) return a[1] > b[1] end)
+                for _, sp in ipairs(spans) do
+                  local s, e = sp[1], sp[2]
+                  if s >= 0 and e > s and e <= #text then
+                    text = string.sub(text, 1, s) .. "[oculto]" .. string.sub(text, e + 1)
+                  end
+                end
+                return text
+              end
+              local function guard_request(h, text)
+                local st = {down = false}
+                if string.find(text, '"stream"%s*:%s*true') then
+                  h:streamInfo():dynamicMetadata():set("envoy.lua", "grstream", "1")
+                end
+                if hit(detect(h, st, text, block_in)) then
+                  return "block", nil
+                end
+                local masked = detect(h, st, text, mask_in)
+                if hit(masked) then
+                  return "mask", mask_text(text, masked)
+                end
+                if hit(detect(h, st, text, exfil)) then
+                  h:streamInfo():dynamicMetadata():set("envoy.lua", "grexfil", "1")
+                end
+                if st.down then
+                  return "skipped", nil
+                end
+                return "clear", nil
+              end
+              local function guard_response(h, text)
+                local md = h:streamInfo():dynamicMetadata():get("envoy.lua") or {}
+                if md["grstream"] == "1" then
+                  return nil, "stream-not-rewritten"
+                end
+                local st = {down = false}
+                if hit(detect(h, st, text, block_out)) then
+                  return '{"warning":"La respuesta fue bloqueada por la politica de guardrails.","action":"block"}', "block"
+                end
+                local masked = detect(h, st, text, mask_out)
+                if hit(masked) then
+                  return mask_text(text, masked), "masked"
+                end
+                if md["grexfil"] == "1" or hit(detect(h, st, text, exfil)) then
+                  return nil, "exfil-logged"
+                end
+                if st.down then
+                  return nil, "skipped"
+                end
+                return nil, "clear"
               end
               function envoy_on_request(h)
                 local path = h:headers():get(":path") or ""
@@ -102,6 +265,32 @@ spec:
                 }, pay(route, user, 1), 1000)
                 if hdrs ~= nil and hdrs[":status"] == "429" then
                   h:respond({[":status"] = "429", ["content-type"] = "application/json"}, "{}")
+                  return
+                end
+                local buf = h:body()
+                if buf == nil or buf:length() == 0 then
+                  return
+                end
+                local text = buf:getBytes(0, buf:length())
+                local ok, action, newbody = pcall(guard_request, h, text)
+                if not ok then
+                  h:logInfo("guardrail request failed")
+                  return
+                end
+                if action == "block" then
+                  h:respond({
+                    [":status"] = "422",
+                    ["content-type"] = "application/json",
+                    ["x-guardrail"] = "block"
+                  }, '{"warning":"El pedido fue bloqueado por la politica de guardrails.","action":"block"}')
+                  return
+                end
+                if action == "mask" and newbody ~= nil then
+                  buf:setBytes(0, buf:length(), newbody)
+                  h:headers():replace("content-length", tostring(#newbody))
+                  h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "masked")
+                elseif action ~= nil then
+                  h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", action)
                 end
               end
               function envoy_on_response(h)
@@ -116,13 +305,30 @@ spec:
                 local body = buf:getBytes(0, buf:length())
                 local route = route_in(body)
                 local tok = string.match(body, '"total_tokens"%s*:%s*(%d+)')
-                if route == nil or tok == nil then
+                if route ~= nil and tok ~= nil then
+                  h:httpCall("t11-limitador", {
+                    [":method"] = "POST",
+                    [":path"] = "/report",
+                    [":authority"] = "limitador",
+                    ["content-type"] = "application/json"
+                  }, pay(route, md["t11"], tok), 1000)
+                end
+                local ok, newbody, flag = pcall(guard_response, h, body)
+                if not ok then
+                  h:logInfo("guardrail response failed")
+                  h:headers():replace("x-guardrail", "skipped")
                   return
                 end
-                h:httpCall("t11-limitador", {
-                  [":method"] = "POST",
-                  [":path"] = "/report",
-                  [":authority"] = "limitador",
-                  ["content-type"] = "application/json"
-                }, pay(route, md["t11"], tok), 1000)
+                if newbody ~= nil and newbody ~= body then
+                  buf:setBytes(0, buf:length(), newbody)
+                  h:headers():replace("content-length", tostring(#newbody))
+                  h:headers():replace("content-type", "application/json")
+                end
+                if flag == "block" or flag == "masked" then
+                  h:headers():replace("x-guardrail", flag)
+                elseif md["grin"] == "masked" then
+                  h:headers():replace("x-guardrail", "masked")
+                elseif flag ~= nil then
+                  h:headers():replace("x-guardrail", flag)
+                end
               end
