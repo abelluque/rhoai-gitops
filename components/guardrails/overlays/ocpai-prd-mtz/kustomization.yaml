@@ -4,3 +4,7 @@ resources:
   - namespace-rhoai-guardrails.yaml
   - configmap-fms-orchestr8-config-nlp.yaml
   - guardrailsorchestrator-guardrails-orchestrator.yaml
+  - deployment-guardrails-hap.yaml
+  - service-guardrails-hap.yaml
+  - deployment-guardrails-injection.yaml
+  - service-guardrails-injection.yaml
