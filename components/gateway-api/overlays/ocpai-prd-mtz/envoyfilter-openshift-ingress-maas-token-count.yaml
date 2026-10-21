@@ -55,7 +55,7 @@ spec:
                       address:
                         socket_address:
                           address: guardrails-orchestrator-service.rhoai-guardrails.svc.cluster.local
-                          port_value: 8080
+                          port_value: 8480
     - applyTo: HTTP_FILTER
       match:
         context: GATEWAY
