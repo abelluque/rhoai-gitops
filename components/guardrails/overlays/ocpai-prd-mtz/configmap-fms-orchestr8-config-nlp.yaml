@@ -1,0 +1,21 @@
+# Fase 1. El orquestador no llama a Granite, Qwen ni Deepseek:
+# no hay chat_generation. El gateway de MaaS sigue igual.
+# El detector incluido escanea el texto que se le envia.
+# El mismo llamado sirve para la entrada y para la salida.
+# Algoritmos de esta etapa: email y credit-card.
+# CUIT, CBU y DNI no se declaran: faltan las regex del banco.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fms-orchestr8-config-nlp
+  namespace: rhoai-guardrails
+data:
+  config.yaml: |
+    detectors:
+      built-in-detector:
+        type: text_contents
+        service:
+          hostname: "127.0.0.1"
+          port: 8080
+        chunker_id: whole_doc_chunker
+        default_threshold: 0.5
