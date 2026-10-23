@@ -4,10 +4,9 @@
 # One counter per model, shared by every caller: the gateway no longer
 # has the caller identity in the Authorization header at this point.
 #
-# Guardrails from the workshop paper, on the three MaaS chats only.
-# The built-in detector matches text. It does not check CUIT modulo 11,
-# CBU check digits, or a separate Luhn step. If the detector does not
-# answer, the chat continues. Streaming responses are not rewritten.
+# Guardrails del PDF, en los tres chats. El filtro mira el texto.
+# No calcula modulo 11 ni el digito del CBU. Una respuesta en streaming
+# no se reescribe. La exfiltracion solo se anota.
 apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
@@ -36,25 +35,6 @@ spec:
                       address:
                         socket_address:
                           address: limitador-limitador.kuadrant-system.svc.cluster.local
-                          port_value: 8080
-    - applyTo: CLUSTER
-      match:
-        context: GATEWAY
-      patch:
-        operation: ADD
-        value:
-          name: t12-guardrails
-          connect_timeout: 1s
-          type: STRICT_DNS
-          lb_policy: ROUND_ROBIN
-          load_assignment:
-            cluster_name: t12-guardrails
-            endpoints:
-              - lb_endpoints:
-                  - endpoint:
-                      address:
-                        socket_address:
-                          address: guardrails-orchestrator-service.rhoai-guardrails.svc.cluster.local
                           port_value: 8080
     - applyTo: HTTP_FILTER
       match:
@@ -92,144 +72,261 @@ spec:
                   key = "tokenlimit.models_as_a_service_premium_models_subscription_deepseek_coder_33b_tokens__54fe0a8f"
                 }
               }
-              local block_in = {
-                [[(?i)\bignora\b.{0,40}\binstrucciones]],
-                [[(?i)\bignore\b.{0,40}\binstructions]],
-                [[(?i)\bolvida\b.{0,40}\binstrucciones]],
-                [[(?i)\b(?:CVV|CVC|c[oó]digo\s+de\s+seguridad)\s*[:#=-]?\s*(\d{3,4})\b]],
-                [[(?i)\b(?:clave|password|contrase[nñ]a|passphrase|PIN|token)\s*[:=]\s*(\S{4,128})\b]],
-                [[(?i)\bBearer\s+[A-Za-z0-9._~+/-]+=*\b]],
-                [[(?i)\b(?:api[_-]?key|access[_-]?token|client[_-]?secret|secret[_-]?key)\s*[:=]\s*["']?([A-Za-z0-9._~+/-]{12,})["']?]],
-                [[(?i)\b(ignore|disregard|forget|override)\b.{0,40}\b(previous|prior|above|system|developer)\b.{0,30}\b(instructions?|rules?|prompt|policy)\b]],
-                [[(?i)\b(ignor[aá]|olvid[aá]|anul[aá]|descart[aá]|sobrescrib[ei])\b.{0,40}\b(?:las?\s+)?(?:instrucciones?|reglas?|pol[ií]ticas?)\b.{0,30}\b(?:anteriores?|previas?|del\s+sistema|del\s+desarrollador)\b]],
-                [[(?i)\b(reveal|show|print|repeat|expose|dump|display)\b.{0,40}\b(system|developer|hidden|internal)\b.{0,20}\b(prompt|instructions?|policy|configuration)\b]],
-                [[(?i)\b(trata|interpreta|considera|ejecuta)\b.{0,30}\b(?:el\s+)?(?:siguiente\s+)?(?:texto|documento|contenido|resultado)\b.{0,30}\bcomo\b.{0,20}\binstrucciones?\b]],
-                [[(?i)\b(bypass|evade|disable|circumvent|remove|deactivate)\b.{0,40}\b(safety|security|guardrail|filter|restriction|policy|control)\b]],
-                [[(?i)\b(evad[ei]|desactiv[aá]|elimin[aá]|omit[ei]|salt[aá]|anul[aá])\b.{0,40}\b(?:los?\s+)?(?:controles?|filtros?|guardrails?|restricciones?|pol[ií]ticas?)\b]],
-                [[(?i)\b(?:modo|mode)\b.{0,25}\b(?:sin\s+restricciones|sin\s+filtros|unrestricted|uncensored|unfiltered)\b]],
-                [[(?i)\b(act|pretend|roleplay|simulate|imagina|act[uú]a|finge|simula)\b.{0,60}\b(unrestricted|uncensored|unfiltered|sin\s+restricciones|sin\s+filtros)\b]]
-              }
-              local mask_in = {
-                "email",
-                "credit-card",
-                [[(?i)\b(?:DNI|documento)(?:\s*(?:nro|n[uú]mero|n[°º])\s*)?[:#-]?\s*(\d{1,2}(?:[.\s]?\d{3}){2}|\d{7,8})\b]],
-                [[(?i)\b(?:CUIT|CUIL)(?:\s*(?:nro|n[uú]mero|n[°º])\s*)?[:#-]?\s*(\d{2}[-\s]?\d{8}[-\s]?\d)\b]],
-                [[(?i)\b(?:CBU|CVU)\s*[:#-]?\s*((?:\d[\s-]?){22})\b]],
-                [[(?i)\b(?:alias(?:\s+(?:CBU|CVU))?)\s*[:#-]?\s*([a-z0-9ñáéíóúü]+(?:[.-][a-z0-9ñáéíóúü]+){1,5})\b]],
-                [[(?i)\b(?:n[uú]mero\s+de\s+cuenta|nro\.?\s+de\s+cuenta|cuenta)\s*[:#-]?\s*(\d{6,20})\b]],
-                [[(?i)\b(?:tarjeta|card|PAN)\s*[:#-]?\s*((?:\d[ -]?){13,19})\b]]
-              }
-              local block_out = {
-                "credit-card",
-                [[(?i)\b(?:CVV|CVC|c[oó]digo\s+de\s+seguridad)\s*[:#=-]?\s*(\d{3,4})\b]],
-                [[(?i)\b(?:clave|password|contrase[nñ]a|passphrase|PIN|token)\s*[:=]\s*(\S{4,128})\b]],
-                [[(?i)\bBearer\s+[A-Za-z0-9._~+/-]+=*\b]],
-                [[(?i)\b(?:api[_-]?key|access[_-]?token|client[_-]?secret|secret[_-]?key)\s*[:=]\s*["']?([A-Za-z0-9._~+/-]{12,})["']?]],
-                [[(?i)\b(?:CUIT|CUIL)(?:\s*(?:nro|n[uú]mero|n[°º])\s*)?[:#-]?\s*(\d{2}[-\s]?\d{8}[-\s]?\d)\b]],
-                [[(?i)\b(?:CBU|CVU)\s*[:#-]?\s*((?:\d[\s-]?){22})\b]],
-                [[(?i)\b(?:tarjeta|card|PAN)\s*[:#-]?\s*((?:\d[ -]?){13,19})\b]]
-              }
-              local mask_out = {
-                "email",
-                [[(?i)\b(?:DNI|documento)(?:\s*(?:nro|n[uú]mero|n[°º])\s*)?[:#-]?\s*(\d{1,2}(?:[.\s]?\d{3}){2}|\d{7,8})\b]],
-                [[(?i)\b(?:alias(?:\s+(?:CBU|CVU))?)\s*[:#-]?\s*([a-z0-9ñáéíóúü]+(?:[.-][a-z0-9ñáéíóúü]+){1,5})\b]],
-                [[(?i)\b(?:n[uú]mero\s+de\s+cuenta|nro\.?\s+de\s+cuenta|cuenta)\s*[:#-]?\s*(\d{6,20})\b]]
-              }
-              local exfil = {
-                [[(?i)\b(send|post|upload|forward|email|export|exfiltrate|transmit)\b.{0,60}\b(secret|credential|token|customer|account|database|record|document|file)\b]],
-                [[(?i)\b(envi[aá]|sub[ií]|public[aá]|reenvi[aá]|export[aá]|transfer[ií]|transmit[ií])\b.{0,60}\b(secreto|credencial|token|cliente|cuenta|base\s+de\s+datos|registro|documento|archivo)\b]],
-                [[(?i)\b(curl|wget|Invoke-WebRequest|fetch|requests?\.(?:post|get))\b.{0,120}\bhttps?://]],
-                [[(?i)\bhttps?://(?:localhost|127(?:\.\d{1,3}){3}|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|169\.254\.169\.254)\b]]
-              }
-              local function route_for(path)
-                for _, route in ipairs(routes) do
-                  if string.find(path, route.path, 1, true) then
-                    return route
+              local function lower_ascii(s)
+                return (string.gsub(s, "%u", string.lower))
+              end
+
+              local function is_word(c)
+                return c ~= "" and string.find(c, "[%w_]") ~= nil
+              end
+
+              local function skip_seps(s, i)
+                while i <= #s do
+                  local c = string.sub(s, i, i)
+                  if c == " " or c == ":" or c == "#" or c == "-" or c == "." or c == "\t" then
+                    i = i + 1
+                  else
+                    break
                   end
                 end
+                return i
               end
-              local function route_in(body)
-                for _, route in ipairs(routes) do
-                  if string.find(body, route.model, 1, true) then
-                    return route
+
+              local function skip_nro(s, i)
+                i = skip_seps(s, i)
+                if string.sub(s, i, i + 2) == "nro" and not is_word(string.sub(s, i + 3, i + 3)) then
+                  return skip_seps(s, i + 3)
+                end
+                if string.sub(s, i, i + 6) == "numero" and not is_word(string.sub(s, i + 7, i + 7)) then
+                  return skip_seps(s, i + 7)
+                end
+                return i
+              end
+
+              local function read_digits(text, i, minn, maxn)
+                local n = 0
+                local last = i - 1
+                local j = i
+                while j <= #text and n < maxn do
+                  local c = string.sub(text, j, j)
+                  if c >= "0" and c <= "9" then
+                    n = n + 1
+                    last = j
+                    j = j + 1
+                  elseif n > 0 and n < maxn and (c == " " or c == "-" or c == ".") then
+                    local nxt = string.sub(text, j + 1, j + 1)
+                    if nxt >= "0" and nxt <= "9" then
+                      j = j + 1
+                    else
+                      break
+                    end
+                  else
+                    break
                   end
                 end
-              end
-              local function pay(route, user, delta)
-                return '{"namespace":"' .. route.ns .. '","delta":' .. delta .. ',"values":{"' .. route.key .. '":"1","auth.identity.userid":"' .. user .. '"}}'
-              end
-              local function jesc(s)
-                s = string.gsub(s, "\\", "\\\\")
-                s = string.gsub(s, '"', '\\"')
-                s = string.gsub(s, "\n", "\\n")
-                s = string.gsub(s, "\r", "\\r")
-                s = string.gsub(s, "\t", "\\t")
-                return s
-              end
-              local function detect_body(text, patterns)
-                local parts = {}
-                for _, pattern in ipairs(patterns) do
-                  parts[#parts + 1] = '"' .. jesc(pattern) .. '"'
+                if n >= minn and n <= maxn then
+                  return i, last
                 end
-                return '{"contents":["' .. jesc(text) .. '"],"detector_params":{"regex":[' .. table.concat(parts, ",") .. ']}}'
               end
-              local function hit(resp)
-                return type(resp) == "string" and string.find(resp, '"start"', 1, true) ~= nil
+
+              local function digits_of(text, s, e)
+                local out = {}
+                for i = s, e do
+                  local c = string.sub(text, i, i)
+                  if c >= "0" and c <= "9" then
+                    out[#out + 1] = c
+                  end
+                end
+                return table.concat(out)
               end
-              local function detect(h, st, text, patterns)
-                if st.down or text == nil or #text == 0 or #text > 100000 then
-                  return nil
+
+              local function luhn(digits)
+                local sum = 0
+                local alt = false
+                for i = #digits, 1, -1 do
+                  local d = string.byte(digits, i) - 48
+                  if alt then
+                    d = d * 2
+                    if d > 9 then
+                      d = d - 9
+                    end
+                  end
+                  sum = sum + d
+                  alt = not alt
                 end
-                local payload = detect_body(text, patterns)
-                local hdrs, body = h:httpCall("t12-guardrails", {
-                  [":method"] = "POST",
-                  [":path"] = "/api/v1/text/contents",
-                  [":authority"] = "guardrails-orchestrator",
-                  ["content-type"] = "application/json",
-                  ["detector-id"] = "regex"
-                }, payload, 800)
-                if hdrs == nil then
-                  st.down = true
-                  st.code = "down"
-                  st.trace = "up-down"
-                  return nil
-                end
-                local status = hdrs[":status"]
-                if status == nil then
-                  status = "nostatus"
-                end
-                status = tostring(status)
-                local snippet = ""
-                if type(body) == "string" then
-                  snippet = string.gsub(string.sub(body, 1, 48), "[^%w%[%]{}]", "")
-                else
-                  snippet = "nobody"
-                end
-                st.trace = "st" .. status .. "-" .. snippet
-                if status ~= "200" then
-                  st.down = true
-                  st.code = status
-                  return nil
-                end
-                st.code = "200"
-                st.body = type(body) == "string" and body or ""
-                return st.body
+                return sum % 10 == 0
               end
-              local function mask_text(text, resp)
+
+              local function find_labels(low, labels)
+                local found = {}
+                for _, label in ipairs(labels) do
+                  local from = 1
+                  while true do
+                    local s, e = string.find(low, label, from, true)
+                    if s == nil then
+                      break
+                    end
+                    local before = s > 1 and string.sub(low, s - 1, s - 1) or ""
+                    local after = string.sub(low, e + 1, e + 1)
+                    if not is_word(before) and not is_word(after) then
+                      found[#found + 1] = e + 1
+                    end
+                    from = e + 1
+                  end
+                end
+                table.sort(found)
+                return found
+              end
+
+              local function labeled_digits(text, low, labels, minn, maxn, want_luhn)
                 local spans = {}
-                for s, e in string.gmatch(resp, '"start"%s*:%s*(%d+)%s*,%s*"end"%s*:%s*(%d+)') do
-                  spans[#spans + 1] = {tonumber(s), tonumber(e)}
-                end
-                table.sort(spans, function(a, b) return a[1] > b[1] end)
-                for _, sp in ipairs(spans) do
-                  local s, e = sp[1], sp[2]
-                  if s >= 0 and e > s and e <= #text then
-                    text = string.sub(text, 1, s) .. "[oculto]" .. string.sub(text, e + 1)
+                for _, pos in ipairs(find_labels(low, labels)) do
+                  local i = skip_nro(low, pos)
+                  local s, e = read_digits(text, i, minn, maxn)
+                  if s ~= nil then
+                    local digits = digits_of(text, s, e)
+                    if not want_luhn or luhn(digits) then
+                      spans[#spans + 1] = {s, e}
+                    end
                   end
                 end
-                return text
+                return spans
               end
-              local block_phrases = {
+
+              local function loose_cards(text)
+                local spans = {}
+                local i = 1
+                while i <= #text do
+                  local c = string.sub(text, i, i)
+                  local before = i > 1 and string.sub(text, i - 1, i - 1) or ""
+                  if c >= "0" and c <= "9" and not (before >= "0" and before <= "9") then
+                    local s, e = read_digits(text, i, 13, 19)
+                    if s ~= nil then
+                      local digits = digits_of(text, s, e)
+                      local after = string.sub(text, e + 1, e + 1)
+                      if luhn(digits) and not (after >= "0" and after <= "9") then
+                        spans[#spans + 1] = {s, e}
+                        i = e + 1
+                      else
+                        i = i + 1
+                      end
+                    else
+                      i = i + 1
+                    end
+                  else
+                    i = i + 1
+                  end
+                end
+                return spans
+              end
+
+              local function emails(text)
+                local spans = {}
+                local i = 1
+                while true do
+                  local s, e = string.find(text, "[%w%.%%%+%-_]+@[%w%.%-]+%.%a%a+", i)
+                  if s == nil then
+                    break
+                  end
+                  spans[#spans + 1] = {s, e}
+                  i = e + 1
+                end
+                return spans
+              end
+
+              local function alias_spans(low)
+                local spans = {}
+                for _, pos in ipairs(find_labels(low, {"alias"})) do
+                  local i = skip_seps(low, pos)
+                  local j = i
+                  local groups = 0
+                  local seps = 0
+                  local last = i - 1
+                  while j <= #low do
+                    local c = string.sub(low, j, j)
+                    if (c >= "a" and c <= "z") or (c >= "0" and c <= "9") then
+                      if groups == 0 then
+                        groups = 1
+                      end
+                      last = j
+                      j = j + 1
+                    elseif (c == "." or c == "-") and groups > 0 and seps < 5 then
+                      local nxt = string.sub(low, j + 1, j + 1)
+                      if (nxt >= "a" and nxt <= "z") or (nxt >= "0" and nxt <= "9") then
+                        seps = seps + 1
+                        groups = groups + 1
+                        j = j + 1
+                      else
+                        break
+                      end
+                    else
+                      break
+                    end
+                  end
+                  if seps >= 1 and groups >= 2 then
+                    spans[#spans + 1] = {i, last}
+                  end
+                end
+                return spans
+              end
+
+              local function assigned_secret(low, words)
+                for _, word in ipairs(words) do
+                  local from = 1
+                  while true do
+                    local s, e = string.find(low, word, from, true)
+                    if s == nil then
+                      break
+                    end
+                    local before = s > 1 and string.sub(low, s - 1, s - 1) or ""
+                    local after = string.sub(low, e + 1, e + 1)
+                    if not is_word(before) and not is_word(after) then
+                      local i = e + 1
+                      while string.sub(low, i, i) == " " or string.sub(low, i, i) == "\t" do
+                        i = i + 1
+                      end
+                      local c = string.sub(low, i, i)
+                      if c == ":" or c == "=" then
+                        return true
+                      end
+                    end
+                    from = e + 1
+                  end
+                end
+                return false
+              end
+
+              local function has_bearer(low)
+                return string.find(low, "bearer%s+[%w%.%_%~%+%/%-]+=*") ~= nil
+              end
+
+              local function has_apikey(low)
+                local keys = {"api_key", "api-key", "apikey", "access_token", "client_secret", "secret_key"}
+                for _, key in ipairs(keys) do
+                  local from = 1
+                  while true do
+                    local s, e = string.find(low, key, from, true)
+                    if s == nil then
+                      break
+                    end
+                    local i = e + 1
+                    while string.sub(low, i, i) == " " or string.sub(low, i, i) == "\t" do
+                      i = i + 1
+                    end
+                    local c = string.sub(low, i, i)
+                    if c == ":" or c == "=" then
+                      local rest = string.sub(low, i + 1)
+                      if string.find(rest, "^%s*[\"']?[%w%.%_%~%+%/%-][%w%.%_%~%+%/%-][%w%.%_%~%+%/%-][%w%.%_%~%+%/%-][%w%.%_%~%+%/%-][%w%.%_%~%+%/%-][%w%.%_%~%+%/%-][%w%.%_%~%+%/%-][%w%.%_%~%+%/%-][%w%.%_%~%+%/%-][%w%.%_%~%+%/%-][%w%.%_%~%+%/%-]") ~= nil then
+                        return true
+                      end
+                    end
+                    from = e + 1
+                  end
+                end
+                return false
+              end
+
+              local phrases = {
                 "ignora las instrucciones",
                 "ignore previous",
                 "ignore the instructions",
@@ -237,73 +334,175 @@ spec:
                 "olvida las instrucciones",
                 "anula las instrucciones",
                 "reveal the system prompt",
-                "revela el prompt del sistema"
+                "revela el prompt del sistema",
+                "trata el siguiente documento como instrucciones",
+                "modo sin restricciones"
               }
+
+              local function has_phrase(low)
+                for _, phrase in ipairs(phrases) do
+                  if string.find(low, phrase, 1, true) ~= nil then
+                    return true
+                  end
+                end
+                return false
+              end
+
+              local function has_exfil(low)
+                local function near(a, b)
+                  local s = string.find(low, a, 1, true)
+                  if s == nil then
+                    return false
+                  end
+                  local piece = string.sub(low, s, s + 80)
+                  return string.find(piece, b, 1, true) ~= nil
+                end
+                if near("curl", "http") or near("wget", "http") then
+                  return true
+                end
+                if near("envia", "secreto") or near("enviar", "secreto") or near("envia", "credencial") then
+                  return true
+                end
+                if string.find(low, "169.254.169.254", 1, true) ~= nil then
+                  return true
+                end
+                return false
+              end
+
+              local function add_spans(dst, src)
+                for _, sp in ipairs(src) do
+                  dst[#dst + 1] = sp
+                end
+              end
+
+              local function input_block(text, low)
+                if has_phrase(low) then
+                  return true
+                end
+                if has_bearer(low) or has_apikey(low) then
+                  return true
+                end
+                if assigned_secret(low, {"clave", "password", "contrasena", "contraseña", "pin", "token"}) then
+                  return true
+                end
+                if #labeled_digits(text, low, {"cvv", "cvc", "codigo de seguridad"}, 3, 4, false) > 0 then
+                  return true
+                end
+                return false
+              end
+
+              local function input_mask_spans(text, low)
+                local spans = {}
+                add_spans(spans, emails(text))
+                add_spans(spans, labeled_digits(text, low, {"dni", "documento"}, 7, 8, false))
+                add_spans(spans, labeled_digits(text, low, {"cuit", "cuil"}, 11, 11, false))
+                add_spans(spans, labeled_digits(text, low, {"cbu", "cvu"}, 22, 22, false))
+                add_spans(spans, labeled_digits(text, low, {"cuenta"}, 6, 20, false))
+                add_spans(spans, labeled_digits(text, low, {"tarjeta", "card", "pan"}, 13, 19, true))
+                add_spans(spans, loose_cards(text))
+                add_spans(spans, alias_spans(low))
+                return spans
+              end
+
+              local function output_block(text, low)
+                if has_bearer(low) or has_apikey(low) then
+                  return true
+                end
+                if assigned_secret(low, {"clave", "password", "contrasena", "contraseña", "pin", "token"}) then
+                  return true
+                end
+                if #labeled_digits(text, low, {"cvv", "cvc", "codigo de seguridad"}, 3, 4, false) > 0 then
+                  return true
+                end
+                if #labeled_digits(text, low, {"cuit", "cuil"}, 11, 11, false) > 0 then
+                  return true
+                end
+                if #labeled_digits(text, low, {"cbu", "cvu"}, 22, 22, false) > 0 then
+                  return true
+                end
+                if #labeled_digits(text, low, {"tarjeta", "card", "pan"}, 13, 19, true) > 0 then
+                  return true
+                end
+                if #loose_cards(text) > 0 then
+                  return true
+                end
+                return false
+              end
+
+              local function output_mask_spans(text, low)
+                local spans = {}
+                add_spans(spans, emails(text))
+                add_spans(spans, labeled_digits(text, low, {"dni", "documento"}, 7, 8, false))
+                add_spans(spans, labeled_digits(text, low, {"cuenta"}, 6, 20, false))
+                add_spans(spans, alias_spans(low))
+                return spans
+              end
+
+              local function mask_spans(text, spans)
+                table.sort(spans, function(a, b)
+                  return a[1] > b[1]
+                end)
+                for _, sp in ipairs(spans) do
+                  local s, e = sp[1], sp[2]
+                  if s >= 1 and e >= s and e <= #text then
+                    text = string.sub(text, 1, s - 1) .. "[oculto]" .. string.sub(text, e + 1)
+                  end
+                end
+                return text
+              end
+
+              local function classify_in(text)
+                local low = lower_ascii(text)
+                if input_block(text, low) then
+                  return "block", nil
+                end
+                local spans = input_mask_spans(text, low)
+                if #spans > 0 then
+                  return "mask", mask_spans(text, spans)
+                end
+                if has_exfil(low) then
+                  return "exfil", nil
+                end
+                return "clear", nil
+              end
+
+              local function classify_out(text)
+                local low = lower_ascii(text)
+                if output_block(text, low) then
+                  return "block"
+                end
+                local spans = output_mask_spans(text, low)
+                if #spans > 0 then
+                  return "mask", mask_spans(text, spans)
+                end
+                return "clear", nil
+              end
+
               local function guard_request(h, text)
-                local st = {down = false}
                 if string.find(text, '"stream"%s*:%s*true') then
                   h:streamInfo():dynamicMetadata():set("envoy.lua", "grstream", "1")
                 end
-                local low = string.gsub(text, "%u", function(c) return string.lower(c) end)
-                for _, phrase in ipairs(block_phrases) do
-                  if string.find(low, phrase, 1, true) then
-                    return "block", nil
-                  end
-                end
-                h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "call")
-                local email = detect(h, st, text, {"email"})
-                if hit(email) then
-                  return "mask", mask_text(text, email)
-                end
-                if st.trace ~= nil then
-                  return st.trace, nil
-                end
-                if st.down then
-                  return "up-" .. (st.code or "down"), nil
-                end
-                if hit(detect(h, st, text, block_in)) then
-                  return "block", nil
-                end
-                local masked = detect(h, st, text, mask_in)
-                if hit(masked) then
-                  return "mask", mask_text(text, masked)
-                end
-                if hit(detect(h, st, text, exfil)) then
+                local action, newbody = classify_in(text)
+                if action == "exfil" then
                   h:streamInfo():dynamicMetadata():set("envoy.lua", "grexfil", "1")
+                  return "clear", nil
                 end
-                if st.down then
-                  return "up-" .. (st.code or "down"), nil
-                end
-                if st.body == nil or string.sub(st.body, 1, 1) ~= "[" then
-                  return "up-other", nil
-                end
-                local mark = "clear"
-                if string.find(text, "granite", 1, true) ~= nil then
-                  mark = mark .. "g"
-                end
-                if string.find(low, "ignora", 1, true) ~= nil then
-                  mark = mark .. "i"
-                end
-                return mark .. tostring(#text), nil
+                return action, newbody
               end
               local function guard_response(h, text)
                 local md = h:streamInfo():dynamicMetadata():get("envoy.lua") or {}
                 if md["grstream"] == "1" then
                   return nil, "stream-not-rewritten"
                 end
-                local st = {down = false}
-                if hit(detect(h, st, text, block_out)) then
+                local action, newbody = classify_out(text)
+                if action == "block" then
                   return '{"warning":"La respuesta fue bloqueada por la politica de guardrails.","action":"block"}', "block"
                 end
-                local masked = detect(h, st, text, mask_out)
-                if hit(masked) then
-                  return mask_text(text, masked), "masked"
+                if action == "mask" then
+                  return newbody, "masked"
                 end
-                if md["grexfil"] == "1" or hit(detect(h, st, text, exfil)) then
+                if md["grexfil"] == "1" or has_exfil(lower_ascii(text)) then
                   return nil, "exfil-logged"
-                end
-                if st.down then
-                  return nil, "up-" .. (st.code or "down")
                 end
                 return nil, "clear"
               end
@@ -387,11 +586,9 @@ spec:
                   h:headers():replace("x-guardrail", flag)
                 elseif md["grin"] == "masked" then
                   h:headers():replace("x-guardrail", "masked")
-                elseif md["grin"] == "lua" or md["grin"] == "nobody" then
-                  h:headers():replace("x-guardrail", md["grin"])
-                elseif md["grin"] ~= nil and flag ~= "block" and flag ~= "masked" then
-                  h:headers():replace("x-guardrail", tostring(md["grin"]))
-                elseif flag ~= nil then
+                elseif flag == "exfil-logged" or flag == "stream-not-rewritten" then
                   h:headers():replace("x-guardrail", flag)
+                else
+                  h:headers():replace("x-guardrail", "clear")
                 end
               end
