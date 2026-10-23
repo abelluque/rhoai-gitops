@@ -319,6 +319,7 @@ spec:
                   return
                 end
                 if action == "block" then
+                  h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "block")
                   h:respond({
                     [":status"] = "422",
                     ["content-type"] = "application/json",
@@ -337,6 +338,10 @@ spec:
               function envoy_on_response(h)
                 local md = h:streamInfo():dynamicMetadata():get("envoy.lua")
                 if md == nil or md["t11"] == nil then
+                  return
+                end
+                if md["grin"] == "block" then
+                  h:headers():replace("x-guardrail", "block")
                   return
                 end
                 local buf = h:body()
