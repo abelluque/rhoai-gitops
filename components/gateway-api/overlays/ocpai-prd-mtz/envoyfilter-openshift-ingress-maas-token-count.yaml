@@ -174,7 +174,7 @@ spec:
                 return '{"contents":["' .. jesc(text) .. '"],"detector_params":{"regex":[' .. table.concat(parts, ",") .. ']}}'
               end
               local function hit(resp)
-                return resp ~= nil and string.find(resp, '"start"', 1, true) ~= nil
+                return type(resp) == "string" and string.find(resp, '"start"', 1, true) ~= nil
               end
               local function detect(h, st, text, patterns)
                 if st.down or text == nil or #text == 0 or #text > 100000 then
@@ -191,16 +191,29 @@ spec:
                 if hdrs == nil then
                   st.down = true
                   st.code = "down"
+                  st.trace = "up-down"
                   return nil
                 end
-                if hdrs[":status"] ~= "200" then
+                local status = hdrs[":status"]
+                if status == nil then
+                  status = "nostatus"
+                end
+                status = tostring(status)
+                local snippet = ""
+                if type(body) == "string" then
+                  snippet = string.gsub(string.sub(body, 1, 48), "[^%w%[%]{}]", "")
+                else
+                  snippet = "nobody"
+                end
+                st.trace = "st" .. status .. "-" .. snippet
+                if status ~= "200" then
                   st.down = true
-                  st.code = hdrs[":status"]
+                  st.code = status
                   return nil
                 end
                 st.code = "200"
-                st.body = body or ""
-                return body
+                st.body = type(body) == "string" and body or ""
+                return st.body
               end
               local function mask_text(text, resp)
                 local spans = {}
@@ -236,6 +249,17 @@ spec:
                   if string.find(low, phrase, 1, true) then
                     return "block", nil
                   end
+                end
+                h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "call")
+                local email = detect(h, st, text, {"email"})
+                if hit(email) then
+                  return "mask", mask_text(text, email)
+                end
+                if st.trace ~= nil then
+                  return st.trace, nil
+                end
+                if st.down then
+                  return "up-" .. (st.code or "down"), nil
                 end
                 if hit(detect(h, st, text, block_in)) then
                   return "block", nil
@@ -365,10 +389,8 @@ spec:
                   h:headers():replace("x-guardrail", "masked")
                 elseif md["grin"] == "lua" or md["grin"] == "nobody" then
                   h:headers():replace("x-guardrail", md["grin"])
-                elseif md["grin"] ~= nil and string.sub(md["grin"], 1, 5) == "clear" and flag == "clear" then
-                  h:headers():replace("x-guardrail", md["grin"])
-                elseif md["grin"] ~= nil and string.sub(md["grin"], 1, 3) == "up-" then
-                  h:headers():replace("x-guardrail", md["grin"])
+                elseif md["grin"] ~= nil and flag ~= "block" and flag ~= "masked" then
+                  h:headers():replace("x-guardrail", tostring(md["grin"]))
                 elseif flag ~= nil then
                   h:headers():replace("x-guardrail", flag)
                 end
