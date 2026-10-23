@@ -4,7 +4,7 @@ metadata:
   name: guardrails-orchestrator
   namespace: rhoai-guardrails
   annotations:
-    security.opendatahub.io/enable-auth: "true"
+    security.opendatahub.io/enable-auth: "false"
 spec:
   orchestratorConfig: fms-orchestr8-config-nlp
   enableBuiltInDetectors: true
