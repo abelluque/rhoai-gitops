@@ -186,7 +186,6 @@ spec:
                   [":path"] = "/api/v1/text/contents",
                   [":authority"] = "guardrails-orchestrator",
                   ["content-type"] = "application/json",
-                  ["content-length"] = tostring(#payload),
                   ["detector-id"] = "regex"
                 }, payload, 800)
                 if hdrs == nil then
@@ -312,12 +311,7 @@ spec:
                   h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "nobody")
                   return
                 end
-                local ok, action, newbody = pcall(guard_request, h, text)
-                if not ok then
-                  h:logInfo("guardrail request failed")
-                  h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "lua")
-                  return
-                end
+                local action, newbody = guard_request(h, text)
                 if action == "block" then
                   h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "block")
                   h:respond({
@@ -359,12 +353,7 @@ spec:
                     ["content-type"] = "application/json"
                   }, pay(route, md["t11"], tok), 1000)
                 end
-                local ok, newbody, flag = pcall(guard_response, h, body)
-                if not ok then
-                  h:logInfo("guardrail response failed")
-                  h:headers():replace("x-guardrail", "skipped")
-                  return
-                end
+                local newbody, flag = guard_response(h, body)
                 if newbody ~= nil and newbody ~= body then
                   buf:setBytes(0, buf:length(), newbody)
                   h:headers():replace("content-length", tostring(#newbody))
