@@ -290,6 +290,11 @@ spec:
                 if route == nil then
                   return
                 end
+                local buf = h:body()
+                local text = nil
+                if buf ~= nil and buf:length() > 0 then
+                  text = buf:getBytes(0, buf:length())
+                end
                 local user = h:headers():get("authorization") or "anon"
                 user = string.gsub(user, string.char(34), "")
                 h:streamInfo():dynamicMetadata():set("envoy.lua", "t11", user)
@@ -303,11 +308,10 @@ spec:
                   h:respond({[":status"] = "429", ["content-type"] = "application/json"}, "{}")
                   return
                 end
-                local buf = h:body()
-                if buf == nil or buf:length() == 0 then
+                if text == nil or #text == 0 then
+                  h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "nobody")
                   return
                 end
-                local text = buf:getBytes(0, buf:length())
                 local ok, action, newbody = pcall(guard_request, h, text)
                 if not ok then
                   h:logInfo("guardrail request failed")
@@ -365,8 +369,8 @@ spec:
                   h:headers():replace("x-guardrail", flag)
                 elseif md["grin"] == "masked" then
                   h:headers():replace("x-guardrail", "masked")
-                elseif md["grin"] == "lua" then
-                  h:headers():replace("x-guardrail", "lua")
+                elseif md["grin"] == "lua" or md["grin"] == "nobody" then
+                  h:headers():replace("x-guardrail", md["grin"])
                 elseif md["grin"] ~= nil and string.sub(md["grin"], 1, 5) == "clear" and flag == "clear" then
                   h:headers():replace("x-guardrail", md["grin"])
                 elseif md["grin"] ~= nil and string.sub(md["grin"], 1, 3) == "up-" then
