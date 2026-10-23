@@ -56,6 +56,14 @@ spec:
                         socket_address:
                           address: guardrails-orchestrator-service.rhoai-guardrails.svc.cluster.local
                           port_value: 8480
+          transport_socket:
+            name: envoy.transport_sockets.tls
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+              sni: guardrails-orchestrator-service.rhoai-guardrails.svc
+              common_tls_context:
+                validation_context:
+                  trust_chain_verification: ACCEPT_UNTRUSTED
     - applyTo: HTTP_FILTER
       match:
         context: GATEWAY
@@ -183,7 +191,6 @@ spec:
                   [":path"] = "/api/v1/text/contents",
                   [":authority"] = "guardrails-orchestrator",
                   ["content-type"] = "application/json",
-                  ["content-length"] = tostring(#payload),
                   ["detector-id"] = "regex"
                 }, payload, 800)
                 if hdrs == nil then
