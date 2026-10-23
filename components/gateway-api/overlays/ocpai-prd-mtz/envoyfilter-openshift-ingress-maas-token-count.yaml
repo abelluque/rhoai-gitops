@@ -536,6 +536,28 @@ spec:
                 end
                 local user = h:headers():get("authorization") or "anon"
                 user = string.gsub(user, string.char(34), "")
+                if text == nil or #text == 0 then
+                  h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "nobody")
+                else
+                  local action, newbody = guard_request(h, text)
+                  if action == "block" then
+                    h:streamInfo():dynamicMetadata():set("envoy.lua", "t11", user)
+                    h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "block")
+                    h:respond({
+                      [":status"] = "422",
+                      ["content-type"] = "application/json",
+                      ["x-guardrail"] = "block"
+                    }, '{"warning":"El pedido fue bloqueado por la politica de guardrails.","action":"block"}')
+                    return
+                  end
+                  if action == "mask" and newbody ~= nil then
+                    buf:setBytes(newbody)
+                    h:headers():replace("content-length", tostring(#newbody))
+                    h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "masked")
+                  else
+                    h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", action or "clear")
+                  end
+                end
                 h:streamInfo():dynamicMetadata():set("envoy.lua", "t11", user)
                 local hdrs, _body = h:httpCall("t11-limitador", {
                   [":method"] = "POST",
@@ -546,27 +568,6 @@ spec:
                 if hdrs ~= nil and hdrs[":status"] == "429" then
                   h:respond({[":status"] = "429", ["content-type"] = "application/json"}, "{}")
                   return
-                end
-                if text == nil or #text == 0 then
-                  h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "nobody")
-                  return
-                end
-                local action, newbody = guard_request(h, text)
-                if action == "block" then
-                  h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "block")
-                  h:respond({
-                    [":status"] = "422",
-                    ["content-type"] = "application/json",
-                    ["x-guardrail"] = "block"
-                  }, '{"warning":"El pedido fue bloqueado por la politica de guardrails.","action":"block"}')
-                  return
-                end
-                if action == "mask" and newbody ~= nil then
-                  buf:setBytes(0, buf:length(), newbody)
-                  h:headers():replace("content-length", tostring(#newbody))
-                  h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "masked")
-                elseif action ~= nil then
-                  h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", action)
                 end
               end
               function envoy_on_response(h)
@@ -591,17 +592,9 @@ spec:
                 local body = buf:getBytes(0, buf:length())
                 local route = route_in(body)
                 local tok = string.match(body, '"total_tokens"%s*:%s*(%d+)')
-                if route ~= nil and tok ~= nil then
-                  h:httpCall("t11-limitador", {
-                    [":method"] = "POST",
-                    [":path"] = "/report",
-                    [":authority"] = "limitador",
-                    ["content-type"] = "application/json"
-                  }, pay(route, md["t11"], tok), 1000)
-                end
                 local newbody, flag = guard_response(h, body)
                 if newbody ~= nil and newbody ~= body then
-                  buf:setBytes(0, buf:length(), newbody)
+                  buf:setBytes(newbody)
                   h:headers():replace("content-length", tostring(#newbody))
                   h:headers():replace("content-type", "application/json")
                 end
@@ -613,5 +606,13 @@ spec:
                   h:headers():replace("x-guardrail", flag)
                 else
                   h:headers():replace("x-guardrail", "clear")
+                end
+                if route ~= nil and tok ~= nil then
+                  h:httpCall("t11-limitador", {
+                    [":method"] = "POST",
+                    [":path"] = "/report",
+                    [":authority"] = "limitador",
+                    ["content-type"] = "application/json"
+                  }, pay(route, md["t11"], tok), 1000)
                 end
               end
