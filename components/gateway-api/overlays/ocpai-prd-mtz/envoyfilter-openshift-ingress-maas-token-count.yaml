@@ -506,6 +506,23 @@ spec:
                 end
                 return nil, "clear"
               end
+              local function route_for(path)
+                for _, route in ipairs(routes) do
+                  if string.find(path, route.path, 1, true) then
+                    return route
+                  end
+                end
+              end
+              local function route_in(body)
+                for _, route in ipairs(routes) do
+                  if string.find(body, route.model, 1, true) then
+                    return route
+                  end
+                end
+              end
+              local function pay(route, user, delta)
+                return '{"namespace":"' .. route.ns .. '","delta":' .. delta .. ',"values":{"' .. route.key .. '":"1","auth.identity.userid":"' .. user .. '"}}'
+              end
               function envoy_on_request(h)
                 local path = h:headers():get(":path") or ""
                 local route = route_for(path)
@@ -561,8 +578,14 @@ spec:
                   h:headers():replace("x-guardrail", "block")
                   return
                 end
+                if md["grin"] == "masked" then
+                  h:headers():replace("x-guardrail", "masked")
+                end
                 local buf = h:body()
                 if buf == nil or buf:length() == 0 then
+                  if md["grin"] ~= "masked" then
+                    h:headers():replace("x-guardrail", "clear")
+                  end
                   return
                 end
                 local body = buf:getBytes(0, buf:length())
