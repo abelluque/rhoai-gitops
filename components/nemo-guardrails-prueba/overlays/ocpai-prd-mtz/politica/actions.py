@@ -275,3 +275,55 @@ async def evaluar_semantico(context: Optional[dict] = None, source: str = "input
         "policy_version": POLICY_VERSION,
     }, ensure_ascii=False))
     return "blocked" if decision == "BLOCK" else "allowed"
+
+
+@action(is_system_action=True)
+async def evaluar_combinado(context: Optional[dict] = None, source: str = "input", detector: str = "guardian") -> str:
+    key = "bot_message" if source == "output" else "user_message"
+    text = (context or {}).get(key, "") or ""
+    if not text.strip():
+        return "allowed"
+    found = find(text)
+    start = time.monotonic()
+    try:
+        labels = await asyncio.to_thread(DETECTORS[detector], text, source)
+        error = None
+    except Exception as exc:
+        labels, error = {}, type(exc).__name__
+    latency_ms = round((time.monotonic() - start) * 1000)
+    regex_hits = [f for f in found if f["type"] in ("prompt_injection", "jailbreak")]
+    semantic_attack = source == "input" and bool(labels.get("jailbreak"))
+    semantic_toxic = bool(labels.get("toxico"))
+    reason = None
+    if any(f["type"] in ALWAYS_BLOCK for f in found):
+        reason = next(f["rule"] for f in found if f["type"] in ALWAYS_BLOCK)
+    elif source == "input" and regex_hits and (semantic_attack or error):
+        reason = regex_hits[0]["rule"] + ("+semantico" if semantic_attack else "+detector_no_disponible")
+    elif semantic_attack:
+        reason = "SEM-JAILBREAK"
+    elif semantic_toxic:
+        reason = "SEM-TOXICO"
+    elif source == "output" and any(f["type"] in BLOCK_ON_OUTPUT for f in found):
+        reason = next(f["rule"] for f in found if f["type"] in BLOCK_ON_OUTPUT)
+    if reason:
+        decision = "BLOCK" if MODE == "block" else "BLOCK_SHADOW"
+    elif found or error:
+        decision = "ALLOW_WITH_LOG"
+    else:
+        decision = "ALLOW"
+    if decision != "ALLOW":
+        log.warning(json.dumps({
+            "event": "guardrail_decision",
+            "decision": decision,
+            "reason": reason,
+            "source": source,
+            "mode": MODE,
+            "policy_version": POLICY_VERSION,
+            "detector": detector,
+            "labels": labels,
+            "detector_error": error,
+            "detector_latency_ms": latency_ms,
+            "findings": [{"type": f["type"], "rule": f["rule"],
+                          **({"masked": mask(f["type"], f["value"])} if f["value"] else {})} for f in found],
+        }, ensure_ascii=False))
+    return "blocked" if decision == "BLOCK" else "allowed"

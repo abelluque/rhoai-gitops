@@ -1,9 +1,7 @@
 rails:
   input:
     flows:
-      - evaluar guardrails input
-      - evaluar semantico input
+      - evaluar combinado input
   output:
     flows:
-      - evaluar guardrails output
-      - evaluar semantico output
+      - evaluar combinado output
