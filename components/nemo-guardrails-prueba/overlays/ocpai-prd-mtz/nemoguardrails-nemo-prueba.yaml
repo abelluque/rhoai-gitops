@@ -15,3 +15,7 @@ spec:
   env:
     - name: OPENAI_API_KEY
       value: placeholder
+    - name: GUARDRAILS_MODE
+      value: block
+    - name: POLICY_VERSION
+      value: icbc-2026.10.26-1
