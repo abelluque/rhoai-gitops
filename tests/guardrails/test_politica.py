@@ -8,10 +8,8 @@ import sys
 import tempfile
 import types
 
-CONFIGMAP = pathlib.Path(__file__).resolve().parents[2] / "components/nemo-guardrails-prueba/overlays/ocpai-prd-mtz/configmap-nemo-pii-ar.yaml"
-text = CONFIGMAP.read_text()
-block = text.split("  actions.py: |\n", 1)[1]
-actions = "\n".join(l[4:] for l in block.split("\n"))
+ACTIONS = pathlib.Path(__file__).resolve().parents[2] / "components/nemo-guardrails-prueba/overlays/ocpai-prd-mtz/politica/actions.py"
+actions = ACTIONS.read_text()
 tmp = pathlib.Path(tempfile.mkdtemp()) / "actions.py"
 tmp.write_text(actions)
 

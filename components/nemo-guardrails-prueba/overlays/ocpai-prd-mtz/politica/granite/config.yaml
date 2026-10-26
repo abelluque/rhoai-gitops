@@ -1,0 +1,9 @@
+rails:
+  input:
+    flows:
+      - evaluar guardrails input
+      - evaluar semantico input
+  output:
+    flows:
+      - evaluar guardrails output
+      - evaluar semantico output

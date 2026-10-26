@@ -1,0 +1,26 @@
+define bot informar bloqueo
+  "El mensaje no puede procesarse por la política de guardrails."
+
+define flow evaluar guardrails input
+  $resultado = execute evaluar_guardrails(source="input")
+  if $resultado == "blocked"
+    bot informar bloqueo
+    stop
+
+define flow evaluar guardrails output
+  $resultado = execute evaluar_guardrails(source="output")
+  if $resultado == "blocked"
+    bot informar bloqueo
+    stop
+
+define flow evaluar semantico input
+  $semantico = execute evaluar_semantico(source="input", detector="granite")
+  if $semantico == "blocked"
+    bot informar bloqueo
+    stop
+
+define flow evaluar semantico output
+  $semantico = execute evaluar_semantico(source="output", detector="granite")
+  if $semantico == "blocked"
+    bot informar bloqueo
+    stop
