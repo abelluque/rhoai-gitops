@@ -24,7 +24,7 @@ spec:
     - name: GUARDRAILS_MODE
       value: block
     - name: POLICY_VERSION
-      value: icbc-2026.10.26-3
+      value: icbc-2026.10.26-4
     - name: GUARDIAN_URL
       value: http://guardian.rhoai-nemo-prueba.svc.cluster.local:8000/v1
     - name: GUARDIAN_MODEL

@@ -7,6 +7,7 @@ resources:
   - serviceaccount-nemo-prueba-cliente.yaml
   - deployment-guardian.yaml
   - service-guardian.yaml
+  - job-harness-guardrails.yaml
 generatorOptions:
   disableNameSuffixHash: true
 configMapGenerator:
@@ -28,3 +29,8 @@ configMapGenerator:
       - config.yaml=politica/granite/config.yaml
       - rails.co=politica/granite/rails.co
       - actions.py=politica/actions.py
+  - name: nemo-harness
+    namespace: rhoai-nemo-prueba
+    files:
+      - harness.py=pruebas/harness.py
+      - dataset.jsonl=pruebas/dataset.jsonl

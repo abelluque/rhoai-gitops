@@ -15,7 +15,7 @@ log = logging.getLogger("guardrails_icbc")
 MODE = os.environ.get("GUARDRAILS_MODE", "shadow")
 POLICY_VERSION = os.environ.get("POLICY_VERSION", "dev")
 FLAGS = re.I | re.S
-FILLER = r"(?:\s*(?:[:#=-]|n[°º]\.?|nro\.?|n[uú]mero\b|es\b|era\b|el\b|la\b|mi\b|tu\b|su\b|de\b|del\b)\s*){0,4}\s*"
+FILLER = r"(?:\s*(?:[:#=\"'-]|n[°º]\.?|nro\.?|n[uú]mero\b|es\b|era\b|el\b|la\b|mi\b|tu\b|su\b|de\b|del\b)\s*){0,4}\s*"
 
 NUMBER = re.compile(r"(?<![\d-])\d(?:[ .-]?\d){6,21}(?![\d-]?\d)")
 CUIT_PREFIXES = {"20", "23", "24", "25", "26", "27", "30", "33", "34"}
@@ -27,7 +27,7 @@ LABELED = {
                          r"|caja\s+de\s+ahorros?)\b" + FILLER + r"(\d(?:[ -]?\d){5,19})(?![\d-]?\d)", FLAGS),
     "ALIAS": re.compile(r"\balias(?:\s+(?:cbu|cvu))?\b" + FILLER
                         + r"([a-z0-9ñ]+(?:[.-][a-z0-9ñ]+){1,5})\b", FLAGS),
-    "CVV": re.compile(r"\b(?:cvv2?|cvc2?|c[oó]digo\s+de\s+seguridad)\b" + FILLER + r"(\d{3,4})(?!\d)", FLAGS),
+    "CVV": re.compile(r"\b(?:c\.?v\.?v\.?2?|c\.?v\.?c\.?2?|c[oó]digo\s+de\s+seguridad)(?!\w)" + FILLER + r"(\d{3,4})(?!\d)", FLAGS),
     "CREDENCIAL": re.compile(r"\b(?:clave|contrase[nñ]a|password|passwd|passphrase|pin|token)\b" + FILLER
                              + r"[\"']?([^\s\"'<>]{4,128})", FLAGS),
 }

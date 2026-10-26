@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: harness-guardrails
+  namespace: rhoai-nemo-prueba
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  template:
+    spec:
+      serviceAccountName: nemo-prueba-cliente
+      restartPolicy: Never
+      containers:
+        - name: harness
+          image: registry.access.redhat.com/ubi9/python-312:latest
+          command: ["python3", "-I", "/pruebas/harness.py"]
+          env:
+            - name: NEMO_URL
+              value: https://nemo-prueba.rhoai-nemo-prueba.svc
+            - name: DATASET
+              value: /pruebas/dataset.jsonl
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: pruebas
+              mountPath: /pruebas
+      volumes:
+        - name: pruebas
+          configMap:
+            name: nemo-harness
