@@ -18,3 +18,4 @@ resources:
   - llmisvc-deepseek-coder-33b.yaml
   - maas-subscriptions.yaml
   - guardrails.yaml
+  - nemo-guardrails-prueba.yaml

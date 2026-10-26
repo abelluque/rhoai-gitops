@@ -1,0 +1,17 @@
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: NemoGuardrails
+metadata:
+  name: nemo-prueba
+  namespace: rhoai-nemo-prueba
+  annotations:
+    security.opendatahub.io/enable-auth: "true"
+spec:
+  replicas: 1
+  nemoConfigs:
+    - name: pii-ar
+      configMaps:
+        - nemo-pii-ar
+      default: true
+  env:
+    - name: OPENAI_API_KEY
+      value: placeholder
