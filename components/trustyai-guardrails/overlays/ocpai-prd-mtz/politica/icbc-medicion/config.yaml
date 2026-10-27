@@ -1,0 +1,7 @@
+rails:
+  input:
+    flows:
+      - evaluar combinado input
+  output:
+    flows:
+      - evaluar combinado output

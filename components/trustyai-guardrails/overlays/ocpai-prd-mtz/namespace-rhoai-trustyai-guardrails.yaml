@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhoai-trustyai-guardrails
+  labels:
+    kubernetes.io/metadata.name: rhoai-trustyai-guardrails
+    opendatahub.io/dashboard: "true"

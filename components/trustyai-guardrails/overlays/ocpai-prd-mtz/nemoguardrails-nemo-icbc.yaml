@@ -1,0 +1,32 @@
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: NemoGuardrails
+metadata:
+  name: nemo-icbc
+  namespace: rhoai-trustyai-guardrails
+  annotations:
+    security.opendatahub.io/enable-auth: "true"
+spec:
+  replicas: 1
+  nemoConfigs:
+    - name: icbc
+      configMaps:
+        - nemo-icbc
+      default: true
+    - name: icbc-medicion
+      configMaps:
+        - nemo-icbc-medicion
+  env:
+    - name: OPENAI_API_KEY
+      value: placeholder
+    - name: GUARDRAILS_MODE
+      value: shadow
+    - name: POLICY_VERSION
+      value: icbc-2026.10.27-1
+    - name: GUARDIAN_URL
+      value: http://guardian.rhoai-trustyai-guardrails.svc.cluster.local:8000/v1
+    - name: GUARDIAN_MODEL
+      value: granite-guardian
+    - name: GUARDIAN_THINK
+      value: "false"
+    - name: SEMANTIC_TIMEOUT
+      value: "5"

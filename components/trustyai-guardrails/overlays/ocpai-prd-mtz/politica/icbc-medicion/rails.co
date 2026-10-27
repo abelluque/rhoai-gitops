@@ -1,0 +1,14 @@
+define bot informar bloqueo
+  "El mensaje no puede procesarse por la política de guardrails."
+
+define flow evaluar combinado input
+  $resultado = execute evaluar_combinado(source="input", detector="guardian", mode="block")
+  if $resultado == "blocked"
+    bot informar bloqueo
+    stop
+
+define flow evaluar combinado output
+  $resultado = execute evaluar_combinado(source="output", detector="guardian", mode="block")
+  if $resultado == "blocked"
+    bot informar bloqueo
+    stop

@@ -19,3 +19,4 @@ resources:
   - maas-subscriptions.yaml
   - guardrails.yaml
   - nemo-guardrails-prueba.yaml
+  - trustyai-guardrails.yaml

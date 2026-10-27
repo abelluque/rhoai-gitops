@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace-rhoai-trustyai-guardrails.yaml
+  - nemoguardrails-nemo-icbc.yaml
+  - networkpolicy-rhoai-trustyai-guardrails-ingress.yaml
+  - serviceaccount-guardrails-harness.yaml
+  - deployment-guardian.yaml
+  - service-guardian.yaml
+  - job-harness-guardrails.yaml
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: nemo-icbc
+    namespace: rhoai-trustyai-guardrails
+    files:
+      - config.yaml=politica/icbc/config.yaml
+      - rails.co=politica/icbc/rails.co
+      - actions.py=politica/actions.py
+  - name: nemo-icbc-medicion
+    namespace: rhoai-trustyai-guardrails
+    files:
+      - config.yaml=politica/icbc-medicion/config.yaml
+      - rails.co=politica/icbc-medicion/rails.co
+      - actions.py=politica/actions.py
+  - name: nemo-harness
+    namespace: rhoai-trustyai-guardrails
+    files:
+      - harness.py=pruebas/harness.py
+      - dataset.jsonl=pruebas/dataset.jsonl
+replacements:
+  - source:
+      kind: NemoGuardrails
+      name: nemo-icbc
+      fieldPath: spec.env.[name=POLICY_VERSION].value
+    targets:
+      - select:
+          kind: Job
+          name: harness-guardrails
+        fieldPaths:
+          - spec.template.spec.initContainers.[name=esperar-nemo].env.[name=POLICY_VERSION].value

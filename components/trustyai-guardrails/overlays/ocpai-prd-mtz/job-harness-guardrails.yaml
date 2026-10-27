@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: harness-guardrails
+  namespace: rhoai-trustyai-guardrails
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 2700
+  template:
+    spec:
+      serviceAccountName: guardrails-harness
+      restartPolicy: Never
+      initContainers:
+        - name: esperar-nemo
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              until [ "$(oc get deploy nemo-icbc -n rhoai-trustyai-guardrails -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="POLICY_VERSION")].value}' 2>/dev/null)" = "${POLICY_VERSION}" ]; do
+                echo "Esperando que el Deployment tome ${POLICY_VERSION}..."
+                sleep 10
+              done
+              oc rollout status deploy/nemo-icbc -n rhoai-trustyai-guardrails --timeout=900s
+              until [ "$(oc get pods -n rhoai-trustyai-guardrails -l app=nemo-icbc --no-headers 2>/dev/null | wc -l)" -eq 1 ]; do
+                echo "Esperando que termine el pod anterior..."
+                sleep 5
+              done
+          env:
+            - name: POLICY_VERSION
+              value: desde-el-cr
+      containers:
+        - name: harness
+          image: registry.access.redhat.com/ubi9/python-312:latest
+          command: ["python3", "-I", "/pruebas/harness.py"]
+          env:
+            - name: NEMO_URL
+              value: https://nemo-icbc.rhoai-trustyai-guardrails.svc
+            - name: FORCE_CONFIG
+              value: icbc-medicion
+            - name: DATASET
+              value: /pruebas/dataset.jsonl
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: pruebas
+              mountPath: /pruebas
+      volumes:
+        - name: pruebas
+          configMap:
+            name: nemo-harness

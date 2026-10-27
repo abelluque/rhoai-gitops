@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guardian
+  namespace: rhoai-trustyai-guardrails
+  labels:
+    app: guardian
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: guardian
+  template:
+    metadata:
+      labels:
+        app: guardian
+    spec:
+      initContainers:
+        - name: storage-initializer
+          image: registry.redhat.io/rhoai/odh-kserve-storage-initializer-rhel9@sha256:b73f3818b1c3b6f57d9cac6b975552c5888bf9c0d37df6c50938fd4988d2012b
+          args:
+            - hf://ibm-granite/granite-guardian-4.1-8b
+            - /mnt/models
+          env:
+            - name: HTTP_PROXY
+              value: http://10.214.130.110:80
+            - name: HTTPS_PROXY
+              value: http://10.214.130.110:80
+            - name: NO_PROXY
+              value: 127.0.0.1,localhost,.intranet.local,.ardp.local,.svc,.cluster.local
+            - name: http_proxy
+              value: http://10.214.130.110:80
+            - name: https_proxy
+              value: http://10.214.130.110:80
+            - name: no_proxy
+              value: 127.0.0.1,localhost,.intranet.local,.ardp.local,.svc,.cluster.local
+            - name: HF_HUB_ENABLE_HF_TRANSFER
+              value: "1"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: "1"
+              memory: 24Gi
+          volumeMounts:
+            - name: models
+              mountPath: /mnt/models
+      containers:
+        - name: vllm
+          image: registry.redhat.io/rhaiis/vllm-cuda-rhel9:3.3.1
+          command:
+            - vllm
+            - serve
+            - /mnt/models
+          args:
+            - --served-model-name=granite-guardian
+            - --max-model-len=8192
+            - --port=8000
+            - --tensor-parallel-size=1
+          env:
+            - name: HF_HOME
+              value: /tmp/hf_home
+            - name: HF_HUB_OFFLINE
+              value: "1"
+          ports:
+            - containerPort: 8000
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 60
+          resources:
+            requests:
+              cpu: "2"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "4"
+              memory: 32Gi
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: models
+              mountPath: /mnt/models
+              readOnly: true
+            - name: shm
+              mountPath: /dev/shm
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Exists
+      volumes:
+        - name: models
+          emptyDir: {}
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
