@@ -34,3 +34,14 @@ configMapGenerator:
     files:
       - harness.py=pruebas/harness.py
       - dataset.jsonl=pruebas/dataset.jsonl
+replacements:
+  - source:
+      kind: NemoGuardrails
+      name: nemo-prueba
+      fieldPath: spec.env.[name=POLICY_VERSION].value
+    targets:
+      - select:
+          kind: Job
+          name: harness-guardrails
+        fieldPaths:
+          - spec.template.spec.initContainers.[name=esperar-nemo].env.[name=POLICY_VERSION].value

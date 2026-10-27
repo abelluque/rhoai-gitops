@@ -8,11 +8,31 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   backoffLimit: 0
-  activeDeadlineSeconds: 1800
+  activeDeadlineSeconds: 2700
   template:
     spec:
       serviceAccountName: nemo-prueba-cliente
       restartPolicy: Never
+      initContainers:
+        - name: esperar-nemo
+          image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              until [ "$(oc get deploy nemo-prueba -n rhoai-nemo-prueba -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="POLICY_VERSION")].value}' 2>/dev/null)" = "${POLICY_VERSION}" ]; do
+                echo "Esperando que el Deployment tome ${POLICY_VERSION}..."
+                sleep 10
+              done
+              oc rollout status deploy/nemo-prueba -n rhoai-nemo-prueba --timeout=900s
+              until [ "$(oc get pods -n rhoai-nemo-prueba -l app=nemo-prueba --no-headers 2>/dev/null | wc -l)" -eq 1 ]; do
+                echo "Esperando que termine el pod anterior..."
+                sleep 5
+              done
+          env:
+            - name: POLICY_VERSION
+              value: desde-el-cr
       containers:
         - name: harness
           image: registry.access.redhat.com/ubi9/python-312:latest
