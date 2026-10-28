@@ -97,15 +97,16 @@ spec:
             nvidia.com/gpu: "1"
     nodeSelector:
       nvidia.com/gpu.present: "true"
-    affinity:
-      podAntiAffinity:
-        preferredDuringSchedulingIgnoredDuringExecution:
-        - podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                app.kubernetes.io/name: deepseek-coder-33b
-            topologyKey: kubernetes.io/hostname
-          weight: 100
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: deepseek-coder-33b
+            kserve.io/component: workload
+        matchLabelKeys:
+          - pod-template-hash
     tolerations:
       - effect: NoSchedule
         key: nvidia.com/gpu
