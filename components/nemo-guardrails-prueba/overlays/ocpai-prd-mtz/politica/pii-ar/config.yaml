@@ -1,7 +1,0 @@
-rails:
-  input:
-    flows:
-      - evaluar guardrails input
-  output:
-    flows:
-      - evaluar guardrails output

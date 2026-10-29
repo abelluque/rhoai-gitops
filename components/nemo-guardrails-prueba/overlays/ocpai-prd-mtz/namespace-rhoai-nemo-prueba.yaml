@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rhoai-nemo-prueba
-  labels:
-    kubernetes.io/metadata.name: rhoai-nemo-prueba
-    opendatahub.io/dashboard: "true"

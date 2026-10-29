@@ -8,7 +8,7 @@ import sys
 import tempfile
 import types
 
-ACTIONS = pathlib.Path(__file__).resolve().parents[2] / "components/nemo-guardrails-prueba/overlays/ocpai-prd-mtz/politica/actions.py"
+ACTIONS = pathlib.Path(__file__).resolve().parents[2] / "components/trustyai-guardrails/overlays/ocpai-prd-mtz/politica/actions.py"
 actions = ACTIONS.read_text()
 tmp = pathlib.Path(tempfile.mkdtemp()) / "actions.py"
 tmp.write_text(actions)

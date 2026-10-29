@@ -25,6 +25,3 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: redhat-ods-applications
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: rhoai-nemo-prueba
