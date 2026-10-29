@@ -16,6 +16,8 @@ spec:
     namespace: "ai-models"
   - name: "deepseek-coder-33b"
     namespace: "ai-models"
+  - name: "qwen25-72b"
+    namespace: "ai-models"
   subjects:
     groups:
     - name: "system:authenticated"

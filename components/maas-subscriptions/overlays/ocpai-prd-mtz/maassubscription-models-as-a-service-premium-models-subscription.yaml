@@ -18,6 +18,11 @@ spec:
     tokenRateLimits:
       - limit: 10000
         window: 2m
+  - name: qwen25-72b
+    namespace: ai-models
+    tokenRateLimits:
+      - limit: 10000
+        window: 2m
   owner:
     groups:
       - name: premium-users

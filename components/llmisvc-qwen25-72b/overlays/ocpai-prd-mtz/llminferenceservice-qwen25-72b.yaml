@@ -1,0 +1,113 @@
+# Source: llmisvc/templates/llminferenceservice.yaml
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  annotations:
+    openshift.io/display-name: Qwen2.5 72B Instruct
+    opendatahub.io/model-type: "generative"
+    opendatahub.io/genai-use-case: "chat"
+    openshift.io/description: "Qwen2.5 72B Instruct en BF16, repartido en dos GPUs con tensor parallel para la prueba de inferencia multi-GPU."
+    opendatahub.io/hardware-profile-name: gpu
+    opendatahub.io/hardware-profile-namespace: redhat-ods-applications
+  labels:
+    app.kubernetes.io/name: qwen25-72b
+    app.kubernetes.io/instance: llmisvc-qwen25-72b
+    app.kubernetes.io/version: "3.3.1"
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/genai-asset: "true"
+  name: qwen25-72b
+spec:
+  model:
+    name: qwen25-72b
+    uri: hf://Qwen/Qwen2.5-72B-Instruct
+  replicas: 1
+  storageInitializer:
+    enabled: false
+  router:
+    gateway:
+      refs:
+        - name: maas-default-gateway
+          namespace: openshift-ingress
+    route: {}
+    scheduler: {}
+  template:
+    volumes:
+      - name: kserve-provision-location
+        emptyDir: {}
+    initContainers:
+      - name: storage-initializer
+        image: registry.redhat.io/rhoai/odh-kserve-storage-initializer-rhel9@sha256:b73f3818b1c3b6f57d9cac6b975552c5888bf9c0d37df6c50938fd4988d2012b
+        args:
+          - hf://Qwen/Qwen2.5-72B-Instruct
+          - /mnt/models
+        env:
+          - name: HTTP_PROXY
+            value: http://10.214.130.110:80
+          - name: HTTPS_PROXY
+            value: http://10.214.130.110:80
+          - name: NO_PROXY
+            value: 127.0.0.1,localhost,.intranet.local,.ardp.local,.svc,.cluster.local
+          - name: http_proxy
+            value: http://10.214.130.110:80
+          - name: https_proxy
+            value: http://10.214.130.110:80
+          - name: no_proxy
+            value: 127.0.0.1,localhost,.intranet.local,.ardp.local,.svc,.cluster.local
+          - name: HF_HUB_ENABLE_HF_TRANSFER
+            value: "1"
+          - name: HF_XET_HIGH_PERFORMANCE
+            value: "1"
+          - name: HF_XET_NUM_CONCURRENT_RANGE_GETS
+            value: "8"
+        envFrom:
+          - secretRef:
+              name: hf-token
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: "1"
+            memory: 24Gi
+        volumeMounts:
+          - name: kserve-provision-location
+            mountPath: /mnt/models
+    containers:
+      - name: main
+        volumeMounts:
+          - name: kserve-provision-location
+            mountPath: /mnt/models
+            readOnly: true
+        image: registry.redhat.io/rhaiis/vllm-cuda-rhel9:3.3.1
+        env:
+          - name: VLLM_ADDITIONAL_ARGS
+            value: >-
+              --max-model-len=32768 --tensor-parallel-size=2 --pipeline-parallel-size=1
+        envFrom:
+            - secretRef:
+                name: hf-token
+        resources:
+          limits:
+            cpu: "8"
+            memory: 160Gi
+            nvidia.com/gpu: "2"
+          requests:
+            cpu: "4"
+            memory: 96Gi
+            nvidia.com/gpu: "2"
+    nodeSelector:
+      nvidia.com/gpu.present: "true"
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: qwen25-72b
+            kserve.io/component: workload
+        matchLabelKeys:
+          - pod-template-hash
+    tolerations:
+      - effect: NoSchedule
+        key: nvidia.com/gpu
+        operator: Exists

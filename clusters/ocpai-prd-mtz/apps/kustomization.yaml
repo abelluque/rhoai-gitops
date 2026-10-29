@@ -16,5 +16,6 @@ resources:
   - llmisvc-granite-8b.yaml
   - llmisvc-qwen25-coder-32b.yaml
   - llmisvc-deepseek-coder-33b.yaml
+  - llmisvc-qwen25-72b.yaml
   - maas-subscriptions.yaml
   - trustyai-guardrails.yaml
