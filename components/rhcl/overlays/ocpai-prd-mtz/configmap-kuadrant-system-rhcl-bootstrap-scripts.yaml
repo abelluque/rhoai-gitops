@@ -72,7 +72,7 @@ data:
   
     echo "Patching Authorino TLS spec in ${NAMESPACE}..."
     oc patch authorino authorino -n "${NAMESPACE}" --type=merge -p \
-      "{\"spec\":{\"clusterWide\":true,\"healthz\":{},\"listener\":{\"ports\":{},\"tls\":{\"certSecretRef\":{\"name\":\"${SECRET}\"},\"enabled\":true}},\"oidcServer\":{\"tls\":{\"enabled\":true,\"certSecretRef\":{\"name\":\"${SECRET}\"}}}}}"
+      "{\"spec\":{\"replicas\":2,\"clusterWide\":true,\"healthz\":{},\"listener\":{\"ports\":{},\"tls\":{\"certSecretRef\":{\"name\":\"${SECRET}\"},\"enabled\":true}},\"oidcServer\":{\"tls\":{\"enabled\":true,\"certSecretRef\":{\"name\":\"${SECRET}\"}}}}}"
   patch-kuadrant-operator-resources.sh: |
     #!/bin/bash
     set -euo pipefail
