@@ -17,3 +17,5 @@ spec:
     groups:
       - name: system:authenticated
   priority: 0
+  tokenMetadata:
+    costCenter: homologacion-free

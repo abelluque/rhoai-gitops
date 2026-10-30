@@ -27,3 +27,5 @@ spec:
     groups:
       - name: premium-users
   priority: 1
+  tokenMetadata:
+    costCenter: homologacion-premium
