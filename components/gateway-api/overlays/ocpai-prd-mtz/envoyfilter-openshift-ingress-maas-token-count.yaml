@@ -1,8 +1,8 @@
 # Counts usage.total_tokens against the Limitador limits the MaaS
 # subscriptions already define, and answers 429 on the next request.
 # Kuadrant's wasm plugin never reports the body, so this filter does.
-# One counter per model, shared by every caller: the gateway no longer
-# has the caller identity in the Authorization header at this point.
+# One counter per model and subscription: Authorino blanks the
+# Authorization header, so the caller is the X-MaaS-Subscription it sets.
 #
 # Guardrails del PDF, en los tres chats. El filtro mira el texto.
 # No calcula modulo 11 ni el digito del CBU. Una respuesta en streaming
@@ -72,6 +72,18 @@ spec:
                   model = "deepseek-coder-33b",
                   ns = "ai-models/deepseek-coder-33b-kserve-route",
                   key = "tokenlimit.models_as_a_service_premium_models_subscription_deepseek_coder_33b_tokens__54fe0a8f"
+                },
+                {
+                  path = "/ai-models/qwen25-72b/",
+                  model = "qwen25-72b",
+                  ns = "ai-models/qwen25-72b-kserve-route",
+                  key = "tokenlimit.models_as_a_service_premium_models_subscription_qwen25_72b_tokens__5a5da29e"
+                },
+                {
+                  path = "/ai-models-dev/granite-3-0-8b-instruct/",
+                  model = "granite-3-0-8b-instruct",
+                  ns = "ai-models-dev/granite-3-0-8b-instruct-kserve-route",
+                  key = "tokenlimit.models_as_a_service_premium_models_subscription_granite_3_0_8b_instruct_tokens__27194327"
                 }
               }
               local function lower_ascii(s)
@@ -509,34 +521,34 @@ spec:
                 return nil, "clear"
               end
               local function route_for(path)
-                for _, route in ipairs(routes) do
+                for i, route in ipairs(routes) do
                   if string.find(path, route.path, 1, true) then
-                    return route
+                    return route, i
                   end
                 end
               end
-              local function route_in(body)
-                for _, route in ipairs(routes) do
-                  if string.find(body, route.model, 1, true) then
-                    return route
-                  end
-                end
+              local function route_of(md)
+                return routes[tonumber(md["t11r"] or "")]
               end
               local function pay(route, user, delta)
                 return '{"namespace":"' .. route.ns .. '","delta":' .. delta .. ',"values":{"' .. route.key .. '":"1","auth.identity.userid":"' .. user .. '"}}'
               end
               function envoy_on_request(h)
                 local path = h:headers():get(":path") or ""
-                local route = route_for(path)
+                local route, idx = route_for(path)
                 if route == nil then
                   return
                 end
+                h:streamInfo():dynamicMetadata():set("envoy.lua", "t11r", tostring(idx))
                 local buf = h:body()
                 local text = nil
                 if buf ~= nil and buf:length() > 0 then
                   text = buf:getBytes(0, buf:length())
                 end
-                local user = h:headers():get("authorization") or "anon"
+                local user = h:headers():get("x-maas-subscription") or ""
+                if user == "" then
+                  user = "anon"
+                end
                 user = string.gsub(user, string.char(34), "")
                 if text == nil or #text == 0 then
                   h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", "nobody")
@@ -594,10 +606,9 @@ spec:
                   if md["grin"] ~= "masked" then
                     h:headers():replace("x-guardrail", "stream-not-rewritten")
                   end
-                  local route, tok, tail = nil, nil, ""
+                  local route, tok, tail = route_of(md), nil, ""
                   for chunk in h:bodyChunks() do
                     local s = tail .. chunk:getBytes(0, chunk:length())
-                    route = route or route_in(s)
                     tok = string.match(s, '"total_tokens"%s*:%s*(%d+)') or tok
                     tail = string.sub(s, -80)
                   end
@@ -619,7 +630,7 @@ spec:
                   return
                 end
                 local body = buf:getBytes(0, buf:length())
-                local route = route_in(body)
+                local route = route_of(md)
                 local tok = string.match(body, '"total_tokens"%s*:%s*(%d+)')
                 local newbody, flag = guard_response(h, body)
                 if newbody ~= nil and newbody ~= body then
