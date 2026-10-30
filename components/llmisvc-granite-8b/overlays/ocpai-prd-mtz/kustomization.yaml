@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- llminferenceservice-granite-3-0-8b-instruct.yaml
+- ../../base
 - namespace-ai-models.yaml
 - networkpolicy-ai-models-ingress.yaml
 - sealedsecret-ai-models-hf-token.yaml

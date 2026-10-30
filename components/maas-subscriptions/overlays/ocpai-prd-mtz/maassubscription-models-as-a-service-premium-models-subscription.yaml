@@ -23,6 +23,11 @@ spec:
     tokenRateLimits:
       - limit: 10000
         window: 2m
+  - name: granite-3-0-8b-instruct
+    namespace: ai-models-dev
+    tokenRateLimits:
+      - limit: 10000
+        window: 2m
   owner:
     groups:
       - name: premium-users

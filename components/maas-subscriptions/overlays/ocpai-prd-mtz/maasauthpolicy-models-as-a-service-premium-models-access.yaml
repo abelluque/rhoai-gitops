@@ -18,6 +18,8 @@ spec:
     namespace: "ai-models"
   - name: "qwen25-72b"
     namespace: "ai-models"
+  - name: "granite-3-0-8b-instruct"
+    namespace: "ai-models-dev"
   subjects:
     groups:
     - name: "system:authenticated"
