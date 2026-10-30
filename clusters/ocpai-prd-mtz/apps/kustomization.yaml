@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - appproject.yaml
   - gitops-controller-rbac.yaml
+  - sealed-secrets.yaml
   - cert-manager.yaml
   - observability-operators.yaml
   - platform-addons.yaml
