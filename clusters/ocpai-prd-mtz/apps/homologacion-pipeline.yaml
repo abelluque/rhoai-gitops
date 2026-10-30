@@ -8,6 +8,7 @@ metadata:
     rhoai.example.com/cluster: ocpai-prd-mtz
   annotations:
     argocd.argoproj.io/sync-wave: "7"
+    argocd.argoproj.io/compare-options: ServerSideDiff=true,IncludeMutationWebhook=true
 spec:
   project: rhoai
   source:
