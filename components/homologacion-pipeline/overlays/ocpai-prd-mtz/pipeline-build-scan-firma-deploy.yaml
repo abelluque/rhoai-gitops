@@ -1,0 +1,87 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: build-scan-firma-deploy
+  namespace: homolog-pipeline
+spec:
+  params:
+    - name: BASE_IMAGE
+      type: string
+      default: registry.access.redhat.com/ubi9/ubi-minimal:latest
+    - name: IMAGE_REPO
+      type: string
+      default: image-registry.openshift-image-registry.svc:5000/homolog-pipeline/demo
+  workspaces:
+    - name: source
+  tasks:
+    - name: preparar
+      taskRef:
+        name: preparar-fuente
+      params:
+        - name: BASE_IMAGE
+          value: $(params.BASE_IMAGE)
+      workspaces:
+        - name: source
+          workspace: source
+    - name: build
+      runAfter: [preparar]
+      taskRef:
+        resolver: cluster
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: buildah
+          - name: namespace
+            value: openshift-pipelines
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE_REPO):$(context.pipelineRun.name)
+        - name: DOCKERFILE
+          value: ./Containerfile
+        - name: TLSVERIFY
+          value: "false"
+      workspaces:
+        - name: source
+          workspace: source
+    - name: escanear
+      runAfter: [build]
+      taskRef:
+        name: escanear-imagen
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE_REPO)@$(tasks.build.results.IMAGE_DIGEST)
+    - name: firmar
+      runAfter: [escanear]
+      taskRef:
+        name: firmar-imagen
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE_REPO)@$(tasks.build.results.IMAGE_DIGEST)
+        - name: ACCION
+          value: sign
+    - name: verificar
+      runAfter: [firmar]
+      taskRef:
+        name: firmar-imagen
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE_REPO)@$(tasks.build.results.IMAGE_DIGEST)
+        - name: ACCION
+          value: verify
+    - name: desplegar
+      runAfter: [verificar]
+      taskRef:
+        resolver: cluster
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: openshift-client
+          - name: namespace
+            value: openshift-pipelines
+      params:
+        - name: SCRIPT
+          value: |
+            oc create deployment demo-firmada -n homolog-pipeline --image=$(params.IMAGE_REPO)@$(tasks.build.results.IMAGE_DIGEST) --dry-run=client -o yaml -- sleep infinity | oc apply -f -
+            oc rollout status deployment/demo-firmada -n homolog-pipeline --timeout=180s

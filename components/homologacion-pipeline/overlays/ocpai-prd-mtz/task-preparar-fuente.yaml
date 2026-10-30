@@ -1,0 +1,23 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: preparar-fuente
+  namespace: homolog-pipeline
+spec:
+  params:
+    - name: BASE_IMAGE
+      type: string
+  workspaces:
+    - name: source
+  steps:
+    - name: containerfile
+      image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+      script: |
+        #!/bin/sh
+        set -eu
+        cat > $(workspaces.source.path)/Containerfile <<EOT
+        FROM $(params.BASE_IMAGE)
+        LABEL io.k8s.description="Imagen de demo del pipeline de homologación"
+        CMD ["sleep", "infinity"]
+        EOT
+        cat $(workspaces.source.path)/Containerfile

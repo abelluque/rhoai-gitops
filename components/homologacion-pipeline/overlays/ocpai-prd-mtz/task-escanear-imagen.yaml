@@ -1,0 +1,29 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: escanear-imagen
+  namespace: homolog-pipeline
+spec:
+  params:
+    - name: IMAGE
+      type: string
+    - name: SEVERITY
+      type: string
+      default: CRITICAL
+  steps:
+    - name: trivy
+      image: docker.io/aquasec/trivy:0.58.1
+      env:
+        - name: HTTPS_PROXY
+          value: http://10.214.130.110:80
+        - name: NO_PROXY
+          value: 127.0.0.1,localhost,.svc,.cluster.local
+        - name: TRIVY_INSECURE
+          value: "true"
+        - name: TRIVY_USERNAME
+          value: serviceaccount
+      script: |
+        #!/bin/sh
+        set -eu
+        export TRIVY_PASSWORD="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+        trivy image --cache-dir /tmp/trivy --exit-code 1 --ignore-unfixed --severity $(params.SEVERITY) --no-progress $(params.IMAGE)

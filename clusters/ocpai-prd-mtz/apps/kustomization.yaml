@@ -22,3 +22,4 @@ resources:
   - maas-subscriptions.yaml
   - trustyai-guardrails.yaml
   - homologacion-tenants.yaml
+  - homologacion-pipeline.yaml

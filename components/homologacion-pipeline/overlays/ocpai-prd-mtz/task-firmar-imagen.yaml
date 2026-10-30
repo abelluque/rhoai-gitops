@@ -1,0 +1,32 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: firmar-imagen
+  namespace: homolog-pipeline
+spec:
+  params:
+    - name: IMAGE
+      type: string
+    - name: ACCION
+      type: string
+      description: sign o verify
+  steps:
+    - name: cosign
+      image: image-registry.openshift-image-registry.svc:5000/openshift/tools:latest
+      env:
+        - name: HTTPS_PROXY
+          value: http://10.214.130.110:80
+        - name: NO_PROXY
+          value: 127.0.0.1,localhost,.svc,.cluster.local
+      script: |
+        #!/bin/bash
+        set -euo pipefail
+        curl -sSfL -o /tmp/cosign https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-amd64
+        chmod +x /tmp/cosign
+        export SSL_CERT_FILE=/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
+        /tmp/cosign login image-registry.openshift-image-registry.svc:5000 -u serviceaccount -p "$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+        if [ "$(params.ACCION)" = "sign" ]; then
+          /tmp/cosign sign --yes --tlog-upload=false --key k8s://homolog-pipeline/cosign-key $(params.IMAGE)
+        else
+          /tmp/cosign verify --insecure-ignore-tlog=true --key k8s://homolog-pipeline/cosign-key $(params.IMAGE)
+        fi
