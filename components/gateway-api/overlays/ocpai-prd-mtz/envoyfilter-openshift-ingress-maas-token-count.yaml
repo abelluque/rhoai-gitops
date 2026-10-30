@@ -6,7 +6,9 @@
 #
 # Guardrails del PDF, en los tres chats. El filtro mira el texto.
 # No calcula modulo 11 ni el digito del CBU. Una respuesta en streaming
-# no se reescribe. La exfiltracion solo se anota.
+# pasa de a pedazos, sin retenerse, y no se reescribe; al pedido en
+# streaming se le agrega include_usage para contar sus tokens.
+# La exfiltracion solo se anota.
 apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
@@ -557,6 +559,12 @@ spec:
                   else
                     h:streamInfo():dynamicMetadata():set("envoy.lua", "grin", action or "clear")
                   end
+                  if string.find(text, '"stream"%s*:%s*true') and not string.find(text, '"stream_options"', 1, true) then
+                    local cur = buf:getBytes(0, buf:length())
+                    local withusage = string.gsub(cur, '"stream"%s*:%s*true', '"stream":true,"stream_options":{"include_usage":true}', 1)
+                    buf:setBytes(withusage)
+                    h:headers():replace("content-length", tostring(#withusage))
+                  end
                 end
                 h:streamInfo():dynamicMetadata():set("envoy.lua", "t11", user)
                 local hdrs, _body = h:httpCall("t11-limitador", {
@@ -581,6 +589,27 @@ spec:
                 end
                 if md["grin"] == "masked" then
                   h:headers():replace("x-guardrail", "masked")
+                end
+                if md["grstream"] == "1" then
+                  if md["grin"] ~= "masked" then
+                    h:headers():replace("x-guardrail", "stream-not-rewritten")
+                  end
+                  local route, tok, tail = nil, nil, ""
+                  for chunk in h:bodyChunks() do
+                    local s = tail .. chunk:getBytes(0, chunk:length())
+                    route = route or route_in(s)
+                    tok = string.match(s, '"total_tokens"%s*:%s*(%d+)') or tok
+                    tail = string.sub(s, -80)
+                  end
+                  if route ~= nil and tok ~= nil then
+                    h:httpCall("t11-limitador", {
+                      [":method"] = "POST",
+                      [":path"] = "/report",
+                      [":authority"] = "limitador",
+                      ["content-type"] = "application/json"
+                    }, pay(route, md["t11"], tok), 1000)
+                  end
+                  return
                 end
                 local buf = h:body()
                 if buf == nil or buf:length() == 0 then
