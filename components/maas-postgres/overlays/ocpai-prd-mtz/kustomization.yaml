@@ -3,5 +3,13 @@ kind: Kustomization
 resources:
   - namespace-redhat-ods-applications.yaml
   - ../../base
+  - sealedsecret-redhat-ods-applications-postgres-creds.yaml
 patches:
   - path: persistentvolumeclaim-redhat-ods-applications-postgresql.yaml
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: postgres-creds
+        namespace: redhat-ods-applications

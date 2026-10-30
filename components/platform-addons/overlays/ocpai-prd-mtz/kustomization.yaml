@@ -15,6 +15,8 @@ resources:
 - persistentvolumeclaim-rhoai-model-registries-model-registry-minio-data.yaml
 - persistentvolumeclaim-rhoai-model-registries-model-registry-mysql-data.yaml
 - persistentvolumeclaim-rhods-notebooks-rhods-notebooks-shared.yaml
+- sealedsecret-rhoai-model-registries-model-registry-minio.yaml
+- sealedsecret-rhoai-model-registries-model-registry-mysql.yaml
 - service-rhoai-model-registries-model-registry-minio.yaml
 - service-rhoai-model-registries-model-registry-mysql.yaml
 - subscription-openshift-gitops-operator-openshift-gitops-operator.yaml
