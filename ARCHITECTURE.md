@@ -141,6 +141,8 @@ Cada ISVC declara `router.gateway.refs` hacia `maas-default-gateway` en `openshi
 
 ### 2.6 Caché de prefijos por endpoint
 
+El funcionamiento y la forma de cambiar pesos, encendido y apagado están en [prefix-cache-scorer.md](prefix-cache-scorer.md).
+
 OpenShift AI 3.4 no documenta un caché del AI Gateway que guarde la respuesta HTTP y la devuelva sin pasar por el modelo. El mecanismo soportado para solicitudes idénticas o repetitivas —autocompletado y asistencia recurrente— es la caché de prefijos de vLLM junto con el scheduler llm-d ([Configuring scheduler settings](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/deploy_models_using_distributed_inference_with_llm-d/configuring-llm-scheduler), [vLLM arguments](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/deploy_models_using_distributed_inference_with_llm-d/ref-vllm-arguments_distributed-inference)):
 
 - `--enable-prefix-caching` reutiliza los bloques KV del prefijo ya calculado.
