@@ -1,5 +1,7 @@
 # Caché semántico de prompts y respuestas
 
+El README del repositorio, `ARCHITECTURE.md`, los README de `clusters/opentlc` y `clusters/ocpai-prd-mtz`, `clusters/ocpai-prd-mtz/DESPLIEGUE.md` y `prefix-cache-scorer.md` resumen esta capa. Este archivo es el que hay que seguir para cambiar una regla o probarla.
+
 Este componente es la parte de caché de [Stop paying for the same prompt](https://www.redhat.com/en/blog/stop-paying-same-prompt-optimize-ai-costs-redis-red-hat-openshift) y del flujo de [LangCache](https://redis.io/customers/mangoes-ai/). No incluye el router semántico, los agentes, el dashboard ni la cola de trabajos del quickstart de Redis.
 
 Redis guarda el embedding del prompt y la respuesta del modelo. Un prompt posterior, igual o parecido en significado, se responde desde Redis y no llama al LLM. El modelo de embeddings es `redis/langcache-embed-v2`, el que documenta RedisVL para este caché. La distancia es coseno de Redis: 0 es el mismo vector y 2 es el opuesto. Un umbral más bajo exige más parecido.

@@ -21,7 +21,8 @@ Taint GPU: `nvidia.com/gpu=true:NoSchedule`. Host MaaS: `maas.apps.ocpai-prd-mtz
 - Wave 4 despliega PostgreSQL in-cluster en `redhat-ods-applications` (el mismo base del laboratorio). PVC `postgresql` de 5 Gi en `ntnx-block`. El Job `create-maas-db-config` crea el Secret `maas-db-config`.
 - PVCs sobre las clases que ya existen: MySQL en `ntnx-block` (RWO); MinIO, notebooks y pipelines en `ntnx-files` (RWX). No se crea `nutanix-files-dynamic`.
 - El Model Registry sigue con el Deployment, el Secret y el endpoint de Abel. `quay.io/minio/minio` dejó de ser público el 24 de septiembre de 2026. La imagen que corre es Silo, copiada al registry interno del cluster (`rhoai-model-registries/silo`). Mismas variables `MINIO_ROOT_*`, mismo `server /data` y mismo PVC. No es una imagen de Red Hat.
-- Tres `LLMInferenceService` en GPU: `granite-3-0-8b-instruct`, `qwen25-coder-32b`, `deepseek-coder-33b`.
+- Tres `LLMInferenceService` en GPU: `granite-3-0-8b-instruct`, `qwen25-coder-32b`, `deepseek-coder-33b`. También están `qwen25-72b` y el Granite 8B de `ai-models-dev`.
 - HardwareProfiles `cpu-platform` y `gpu` (NVIDIA H200).
+- Wave 7 agrega `semantic-cache` en `rhoai-semantic-cache`: Redis 8, el embedding `redis/langcache-embed-v2` y un proxy OpenAI. El PVC de Redis usa `ntnx-block`. La Route no sustituye a `maas-default-gateway`. Qwen Coder y DeepSeek quedan con caché semántico (distancia 0.10). Granite 8B y Qwen 72B quedan apagados en `components/semantic-cache/base/policy.yaml`. El detalle está en [components/semantic-cache/README.md](../../components/semantic-cache/README.md).
 
 El procedimiento de arranque, la tabla de sync-waves y el diagrama de arquitectura están en el [README del repositorio](../../README.md).

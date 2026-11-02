@@ -57,3 +57,13 @@ oc get llminferenceservice -n ai-models
 oc get nodes -l nvidia.com/gpu.present=true -o custom-columns=NAME:.metadata.name,GPUs:.status.allocatable.nvidia\.com/gpu
 MODEL=granite-3-0-8b-instruct ./scripts/probe-maas.sh
 ```
+
+La Application raíz sigue leyendo `surtecnologias/rhoai-gitops` en `main` y no crea el caché semántico. Este branch lo declara en `clusters/ocpai-prd-mtz/apps/semantic-cache.yaml`, con origen `abelluque/rhoai-gitops` y `targetRevision: semantic-cache`. Aplicarla aparte:
+
+```bash
+oc apply -f clusters/ocpai-prd-mtz/apps/semantic-cache.yaml
+oc get applications.argoproj.io semantic-cache -n openshift-gitops
+oc get deploy,pvc,route -n rhoai-semantic-cache
+```
+
+La Route queda en `semantic-cache-rhoai-semantic-cache.apps.ocpai-prd-mtz.intranet.local`. Un `POST /v1/chat/completions` con el token de MaaS debe responder `x-semantic-cache: miss` la primera vez. Qwen Coder y DeepSeek cachean; Granite 8B y Qwen 72B responden `x-semantic-cache: disabled` y siguen hasta el modelo. El PVC de Redis usa `ntnx-block`.

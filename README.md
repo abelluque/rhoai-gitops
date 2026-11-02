@@ -10,6 +10,7 @@ Los manifiestos Kustomize versionados aquí describen el estado deseado. No es n
 
 - Declarar Applications de OpenShift GitOps, un `AppProject` y overlays Kustomize por cluster.
 - Instalar y configurar la pila de plataforma (cert-manager, observabilidad, GitOps, Pipelines, Model Registry), Red Hat Connectivity Link, Gateway API, OpenShift AI 3.4, LLMInferenceServices y suscripciones MaaS.
+- Servir prompts repetidos o parecidos desde un caché semántico en Redis, sin llamar al modelo, y reutilizar el prefill de vLLM cuando el pedido sí llega al `LLMInferenceService`.
 - Separar el laboratorio OpenTLC de la producción `ocpai-prd-mtz` sin compartir valores de hardware, almacenamiento ni modelos.
 
 ## Estructura del repositorio
@@ -30,9 +31,12 @@ rhoai-gitops/
 │   └── overlays/
 │       ├── opentlc/                    Overlay de laboratorio
 │       └── ocpai-prd-mtz/              Overlay de producción (autosuficiente)
+├── components/semantic-cache/          Redis, embeddings y proxy de respuestas
+│   └── README.md                       Reglas, umbral y prueba del caché semántico
 ├── hack/
 │   ├── argocd-sync-report.sh           Informe de Applications (sin secretos)
 │   └── import-from-helm.sh             Importador opcional desde un repo de charts
+├── prefix-cache-scorer.md              Caché de prefijos de vLLM por endpoint
 └── scripts/probe-maas.sh               Comprobación de la API MaaS
 ```
 
@@ -96,6 +100,16 @@ flowchart TB
     registry[Model Registry - MySQL y MinIO]
   end
 
+  subgraph semantica [Caché semántico]
+    sc[Route semantic-cache]
+    redis[(Redis 8)]
+    embed[redis/langcache-embed-v2]
+  end
+
+  apps --> sc
+  sc --> embed
+  sc --> redis
+  sc -->|miss o modelo apagado| router
   apps --> router
   router --> gw
   gw --> rhcl
@@ -112,6 +126,10 @@ flowchart TB
 ```
 
 El tráfico de clientes alcanza el **OpenShift Router**, que expone el Gateway MaaS (`maas.apps.<cluster>.<baseDomain>`). El Gateway (`openshift.io/gateway-controller/v1`) envía las peticiones a **RHCL / Authorino** y a **maas-api**. Las inferencias se atienden en `LLMInferenceService`. OpenShift GitOps reconcilia operadores y operandos. El Model Registry persiste metadatos en MySQL y artefactos en MinIO.
+
+Quien quiera evitar la llamada al modelo usa otra Route, `semantic-cache`, en el namespace `rhoai-semantic-cache`. Redis compara el embedding del prompt con respuestas ya guardadas. Un parecido dentro del umbral vuelve en el acto, con `x-semantic-cache: hit`. Si no hay acierto, el proxy reenvía al Gateway MaaS y guarda la respuesta. La política por modelo está en `components/semantic-cache/base/policy.yaml`. El detalle está en [components/semantic-cache/README.md](components/semantic-cache/README.md).
+
+Eso no reemplaza la caché de prefijos de vLLM. Un fallo del caché semántico sigue llegando al `LLMInferenceService`, y ahí `prefix-cache-scorer` puede reutilizar el prefill. Esa segunda capa está en [prefix-cache-scorer.md](prefix-cache-scorer.md).
 
 ## Gateway API: no instalar Service Mesh 3
 
@@ -141,6 +159,7 @@ Argo CD aplica las Applications hijas según `argocd.argoproj.io/sync-wave`. Los
 | 5 | `model-registry-cr` | `rhoai-model-registries` | Sí | Sí (ModelRegistry CR tras las CRD del operador) |
 | 6 | Modelos (`llmisvc-*`) | `ai-models` | `llmisvc-granite` (CPU) | `llmisvc-granite-8b`, `llmisvc-qwen25-coder-32b`, `llmisvc-deepseek-coder-33b` |
 | 7 | `maas-subscriptions` | `models-as-a-service` | Granite 2B | Granite 8B (free); Qwen y DeepSeek (premium) |
+| 7 | `semantic-cache` | `rhoai-semantic-cache` | Redis, embeddings y proxy | Igual, PVC en `ntnx-block` |
 
 `CreateNamespace=true` y `ServerSideApply=true` están habilitados en las Applications hijas. `prune: false` evita borrar Namespaces de plataforma si una Application se desincroniza.
 
@@ -196,6 +215,7 @@ oc get applications.argoproj.io -n openshift-gitops
 oc get datasciencecluster,dscinitialization -A
 oc get gateway,route -n openshift-ingress
 oc get llminferenceservice -n ai-models
+oc get deploy,route -n rhoai-semantic-cache
 ```
 
 En producción, cada SuperMicro debe mostrar `nvidia.com/gpu: 6` allocatable después de la wave 2.
@@ -218,7 +238,7 @@ Si el remoto Git no es el canónico, reemplazar `https://github.com/surtecnologi
 - `clusters/ocpai-prd-mtz/apps/appproject.yaml`
 - `clusters/ocpai-prd-mtz/apps/*.yaml` (`spec.source.repoURL`), incluida `gitops-controller-rbac.yaml`
 
-`targetRevision` por defecto es `main`.
+`targetRevision` por defecto es `main`. La Application `semantic-cache` es la excepción: su `repoURL` ya es `https://github.com/abelluque/rhoai-gitops.git` y su `targetRevision` es `semantic-cache`. La Application raíz de `bootstrap/` sigue leyendo `surtecnologias/rhoai-gitops` en `main`, así que ese componente no entra solo. Hay que aplicar `clusters/<cluster>/apps/semantic-cache.yaml` o apuntar la raíz a este branch.
 
 ## Mantenimiento de manifiestos
 
@@ -241,4 +261,5 @@ El script enumera cada Application (sincronización, salud, mensaje de operació
 
 - Helm `lookup` de objetos preexistentes no aplica: GitOps declara el estado. Si el Namespace ya existe, Argo CD lo adopta.
 - No hay overlay de Service Mesh 3 en ningún cluster de este repositorio.
+- El caché semántico es una Route aparte. No intercepta `maas-default-gateway`. La política está en `components/semantic-cache/base/policy.yaml`.
 - No versionar kubeconfigs ni tokens (`HF_TOKEN`, URLs de Postgres con contraseña).

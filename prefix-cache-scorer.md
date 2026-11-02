@@ -11,6 +11,8 @@ OpenShift AI 3.4 no documenta un caché del AI Gateway que guarde la respuesta H
 
 Tampoco compara el significado del texto. "Similar" en esta documentación quiere decir **el mismo prefijo de tokens** (el comienzo del prompt tokenizado), no dos frases distintas que quieran decir lo mismo.
 
+En este branch hay una segunda capa, el [caché semántico](components/semantic-cache/README.md). Esa sí compara el significado y puede devolver la respuesta guardada sin llamar a vLLM. Vive en otra Route (`semantic-cache`), no en el Gateway MaaS. Si el cliente llama directo a `maas.apps…`, este documento es el único caché que interviene. Si llama a la Route semántica y no hay acierto, el pedido sigue hasta aquí y el prefill se reutiliza igual. Las dos políticas se editan en sitios distintos: el `LLMInferenceService` para los prefijos, y `components/semantic-cache/base/policy.yaml` para las respuestas.
+
 ## Qué ocurre con un pedido
 
 1. El cliente llama a `https://maas.apps.<cluster>.<baseDomain>/ai-models/<model>/v1/chat/completions`.
