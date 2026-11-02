@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semantic-cache
+spec:
+  template:
+    spec:
+      containers:
+        - name: cache
+          env:
+            - name: MAAS_GATEWAY_HOST
+              value: maas.apps.cluster-zd9hr.zd9hr.sandbox1414.opentlc.com
+            # El certificado del sandbox no está en el trust store del contenedor.
+            - name: MAAS_TLS_VERIFY
+              value: "false"

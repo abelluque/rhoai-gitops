@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhoai-semantic-cache
+  labels:
+    app.kubernetes.io/part-of: rhoai-maas
+    workload.rhoai.io/platform: "true"

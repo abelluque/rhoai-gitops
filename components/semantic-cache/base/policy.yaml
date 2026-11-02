@@ -1,0 +1,18 @@
+# Umbral de distancia coseno de Redis: 0 es idéntico, 2 es opuesto.
+# Más bajo exige prompts más parecidos. El default de RedisVL es 0.1.
+ttl_seconds: 86400
+# Por encima de esta temperatura la respuesta no es determinista y no se cachea.
+max_temperature: 0.2
+models:
+  granite-3-1-2b-instruct:
+    enabled: true
+    distance_threshold: 0.25
+  qwen25-coder-32b:
+    enabled: true
+    distance_threshold: 0.10
+  deepseek-coder-33b:
+    enabled: true
+    distance_threshold: 0.10
+  granite-3-0-8b-instruct:
+    enabled: false
+    distance_threshold: 0.10

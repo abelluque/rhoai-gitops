@@ -22,4 +22,8 @@ Taint GPU: `nvidia.com/gpu=true:NoSchedule`. Host MaaS: `maas.apps.ocpai-prd-mtz
 - Tres `LLMInferenceService` en GPU: `granite-3-0-8b-instruct`, `qwen25-coder-32b`, `deepseek-coder-33b`.
 - HardwareProfiles `cpu-platform` y `gpu` (NVIDIA H200).
 
+## Caché semántico
+
+La Application `semantic-cache` (sync-wave 7) despliega Redis y el proxy en `rhoai-semantic-cache`. `qwen25-coder-32b` y `deepseek-coder-33b` quedan encendidos con umbral 0.10. `granite-3-0-8b-instruct` queda apagado (`x-semantic-cache: disabled`) para probar el corte por modelo. El upstream es `maas.apps.ocpai-prd-mtz.mtz.local`. El PVC usa `nutanix-files-dynamic`. Cómo cambiar el umbral o apagar un modelo: [components/semantic-cache/README.md](../../components/semantic-cache/README.md).
+
 El procedimiento de arranque, la tabla de sync-waves y el diagrama de arquitectura están en el [README del repositorio](../../README.md).

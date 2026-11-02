@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semantic-cache
+spec:
+  template:
+    spec:
+      containers:
+        - name: cache
+          env:
+            - name: MAAS_GATEWAY_HOST
+              value: maas.apps.ocpai-prd-mtz.mtz.local
+            # El certificado de ingress (router-certs-default) no está en el trust store del contenedor.
+            - name: MAAS_TLS_VERIFY
+              value: "false"

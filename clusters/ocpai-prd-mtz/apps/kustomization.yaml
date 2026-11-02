@@ -17,3 +17,4 @@ resources:
   - llmisvc-qwen25-coder-32b.yaml
   - llmisvc-deepseek-coder-33b.yaml
   - maas-subscriptions.yaml
+  - semantic-cache.yaml

@@ -14,3 +14,4 @@ resources:
   - model-registry-cr.yaml
   - llmisvc-granite.yaml
   - maas-subscriptions.yaml
+  - semantic-cache.yaml

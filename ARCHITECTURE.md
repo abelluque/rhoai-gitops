@@ -2,7 +2,7 @@
 
 Documento de arquitectura de [`abelluque/rhoai-gitops`](https://github.com/abelluque/rhoai-gitops): fuente de verdad GitOps (Argo CD + Kustomize, patrón **apps-of-apps**) para Red Hat OpenShift AI 3.4 y Models-as-a-Service.
 
-Los hechos de runtime se contrastaron el 26 de agosto de 2026 contra el laboratorio OpenTLC (`cluster-zd9hr`, sandbox1414), donde la Application raíz `rhoai-opentlc-root` reconcilia `clusters/opentlc/apps` de este repositorio (`targetRevision: main`). El overlay `ocpai-prd-mtz` está declarado aquí y no está desplegado en ese contexto.
+Los hechos de runtime se contrastaron el 26 de agosto de 2026 contra el laboratorio OpenTLC (`cluster-zd9hr`, sandbox1414). En este branch las Applications raíz reconcilian `clusters/<cluster>/apps` desde `targetRevision: semantic-cache-demo-platform`. El overlay `ocpai-prd-mtz` está declarado aquí.
 
 | Dato | Valor |
 | --- | --- |
@@ -23,7 +23,7 @@ GitOps declara el clúster: OpenShift GitOps (Argo CD) aplica overlays Kustomize
 
 ### Propósito
 
-- Instalar y mantener la pila de plataforma, Connectivity Link, Gateway API, RHOAI 3.4, `LLMInferenceService` y suscripciones MaaS **sin** un árbol Helm en el clúster.
+- Instalar y mantener la pila de plataforma, Connectivity Link, Gateway API, RHOAI 3.4, `LLMInferenceService`, suscripciones MaaS y el caché semántico **sin** un árbol Helm en el clúster.
 - Separar laboratorio OpenTLC y producción `ocpai-prd-mtz` con overlays autosuficientes (el overlay de producción **no** hereda el `base` de laboratorio).
 - Ordenar dependencias con `argocd.argoproj.io/sync-wave` (−1…7) y Jobs `PostSync` (equivalente a los hooks Helm post-install).
 
@@ -33,7 +33,7 @@ GitOps declara el clúster: OpenShift GitOps (Argo CD) aplica overlays Kustomize
 | --- | --- |
 | **Apps-of-apps** | Bootstrap aplica una Application raíz; esa raíz sincroniza `clusters/<cluster>/apps` (AppProject + hijas). |
 | **Kustomize base / overlay** | Lab: `components/<app>/base` + `overlays/opentlc` (a menudo solo `resources: [../../base]`). Prod: manifiestos completos en `overlays/ocpai-prd-mtz`. |
-| **Sync waves** | Operadores OLM (1–2) → Gateway (3) → Postgres MaaS (4) → DSC / ModelRegistry (5) → modelos (6) → suscripciones (7). |
+| **Sync waves** | Operadores OLM (1–2) → Gateway (3) → Postgres MaaS (4) → DSC / ModelRegistry (5) → modelos (6) → suscripciones y caché semántico (7). |
 | **Server-Side Apply** | `ServerSideApply=true`, `CreateNamespace=true`, `prune: false`. `SkipDryRunOnMissingResource` en CRs cuyo CRD aún no existe. |
 | **Gateway API** | `GatewayClass` `openshift-default` (`openshift.io/gateway-controller/v1`). Sin Application de Service Mesh 3. |
 | **Kuadrant / Authorino / Limitador** | Chart RHCL renderizado a Jobs + Subscription. El `maas-controller` genera AuthPolicy / TokenRateLimitPolicy en runtime. |
@@ -47,7 +47,7 @@ Overlays:
 | `opentlc` | `bootstrap/opentlc-root-app.yaml` | Granite 3.1 2B CPU | `gp3-csi` | In-cluster | No |
 | `ocpai-prd-mtz` | `bootstrap/ocpai-prd-mtz-root-app.yaml` | Granite 8B, Qwen 32B, DeepSeek 33B en H200 | `nutanix-files-dynamic` | Externo (`existingSecret`) | NFD + NVIDIA |
 
-El overlay OpenTLC plantilla `maas.apps.cluster-6f7dh.6f7dh.sandbox3519.opentlc.com`. El clúster vivo observado es `cluster-zd9hr` (`router-default.apps.cluster-zd9hr.zd9hr.sandbox1414.opentlc.com`). El Route está Admitido; el hostname del spec no coincide con el DNS actual del sandbox.
+El overlay OpenTLC declara `maas.apps.cluster-zd9hr.zd9hr.sandbox1414.opentlc.com`. El clúster vivo observado es `cluster-zd9hr` (`router-default.apps.cluster-zd9hr.zd9hr.sandbox1414.opentlc.com`).
 
 ---
 
@@ -143,6 +143,28 @@ Gestión de keys: `/maas-api` y `/v1/models` → `maas-api-route` → `maas-api:
 
 El dashboard RHOAI usa Gateway `data-science-gateway`, no el Gateway MaaS. Ese Gateway lo crea el operador RHOAI, no un overlay de este repo.
 
+### 2.6 Caché semántico
+
+Application `semantic-cache` (wave 7) → `components/semantic-cache/overlays/<cluster>` → namespace `rhoai-semantic-cache`.
+
+Redis 8.2 (`docker.io/redis:8.2.2`) guarda el embedding del prompt y el cuerpo de la respuesta. El servidor de embeddings es `ghcr.io/huggingface/text-embeddings-inference:cpu-1.6` con el modelo `redis/langcache-embed-v2`. El proxy (`ubi9/python-311`) expone `POST /v1/chat/completions`. En un acierto responde desde Redis (`x-semantic-cache: hit`, `usage` en cero). En un fallo reenvía `Authorization` a `https://<MAAS_GATEWAY_HOST>/ai-models/<model>/v1/chat/completions`, así Authorino y la cuota siguen en el Gateway.
+
+| Cluster | Host MaaS | TLS | PVC Redis |
+| --- | --- | --- | --- |
+| `opentlc` | `maas.apps.cluster-zd9hr.zd9hr.sandbox1414.opentlc.com` | `MAAS_TLS_VERIFY=false` | `gp3-csi` |
+| `ocpai-prd-mtz` | `maas.apps.ocpai-prd-mtz.mtz.local` | `MAAS_TLS_VERIFY=false` | `nutanix-files-dynamic` |
+
+Selectividad por modelo en `components/semantic-cache/base/policy.yaml` (la comparten los dos overlays):
+
+| Modelo | `enabled` | Umbral | Dónde corre |
+| --- | --- | --- | --- |
+| `granite-3-1-2b-instruct` | true | 0.25 | laboratorio |
+| `qwen25-coder-32b` | true | 0.10 | producción |
+| `deepseek-coder-33b` | true | 0.10 | producción |
+| `granite-3-0-8b-instruct` | false | 0.10 | producción; la Route sigue, el header es `disabled` |
+
+También se salta el caché con `x-semantic-cache: bypass`, `stream: true`, `temperature` mayor que 0.2, prompt vacío o un patrón de PII. La distancia es coseno de Redis (0 idéntico, 2 opuesto). El detalle operativo está en [components/semantic-cache/README.md](components/semantic-cache/README.md).
+
 ---
 
 ## 3. Diagramas de arquitectura
@@ -152,13 +174,14 @@ El dashboard RHOAI usa Gateway `data-science-gateway`, no el Gateway MaaS. Ese G
 ```mermaid
 flowchart TB
   client[Cliente OpenAI SDK / curl]
-  git[rhoai-gitops main]
+  git[rhoai-gitops semantic-cache-demo-platform]
   argocd[Argo CD application-controller]
 
   git --> argocd
   argocd -->|"wave 3 gateway-api"| gw
   argocd -->|"wave 6 llmisvc-*"| isvc
   argocd -->|"wave 7 maas-subscriptions"| maasCRs
+  argocd -->|"wave 7 semantic-cache"| cache["semantic-cache"]
 
   client -->|"Bearer sk-oai-..."| router[OpenShift Router]
   router --> routeGw["Route maas-default-gateway"]
@@ -254,7 +277,7 @@ flowchart TB
     w4["wave 4 maas-postgres"]
     w5["wave 5 openshift-ai model-registry-cr"]
     w6["wave 6 llmisvc-*"]
-    w7["wave 7 maas-subscriptions"]
+    w7["wave 7 maas-subscriptions + semantic-cache"]
   end
 
   kLab --> w0
@@ -283,6 +306,7 @@ Contrato de Applications hijas (ambos overlays, salvo nota):
 | 5 | `model-registry-cr` | `components/model-registry-cr/overlays/<cluster>` | `rhoai-model-registries` |
 | 6 | `llmisvc-*` | `components/llmisvc-*/overlays/<cluster>` | `ai-models` |
 | 7 | `maas-subscriptions` | `components/maas-subscriptions/overlays/<cluster>` | `models-as-a-service` |
+| 7 | `semantic-cache` | `components/semantic-cache/overlays/<cluster>` | `rhoai-semantic-cache` |
 
 Política común de hijas: `automated.selfHeal`, `prune: false`, `CreateNamespace=true`, `ServerSideApply=true`, `RespectIgnoreDifferences=true` (Subscription `startingCSV`/`status`, InstallPlan `approved`). Reintento: 20 intentos, backoff 15s×2 hasta 5m.
 
@@ -404,15 +428,17 @@ No versionar: `HF_TOKEN`, URLs de Postgres con password, kubeconfigs. Plantillas
 | model-registry-cr | `rhoai-model-registries` | ModelRegistry `rhoai-registry` (`kubeRBACProxy`) | kube-rbac-proxy del registry |
 | llmisvc-* | `ai-models` | LLMInferenceService, Namespace | PodMonitor `kserve-llm-isvc-vllm-engine`; SM scheduler |
 | maas-subscriptions | `models-as-a-service` | MaaSAuthPolicy, MaaSSubscription, MaaSModelRef, Job telemetry | políticas Kuadrant generadas; Istio `REQUEST_DURATION` + label `subscription` |
+| semantic-cache | `rhoai-semantic-cache` | Redis, TEI, proxy, Route `semantic-cache`, PVC, NetworkPolicy | `GET /metrics` → `semantic_cache_requests_total` (en proceso; sin ServiceMonitor) |
 
 Rutas (lab observado):
 
 | Superficie | Recurso | Hostname / path |
 | --- | --- | --- |
-| Inferencia + MaaS API | Gateway + Route `maas-default-gateway` | Spec Git: `maas.apps.cluster-6f7dh.6f7dh.sandbox3519.opentlc.com`. Router canónico vivo: `*.apps.cluster-zd9hr.zd9hr.sandbox1414.opentlc.com` |
+| Inferencia + MaaS API | Gateway + Route `maas-default-gateway` | `maas.apps.cluster-zd9hr.zd9hr.sandbox1414.opentlc.com` |
 | Chat | HTTPRoute del ISVC (KServe, no Git) | `/ai-models/granite-3-1-2b-instruct/v1/chat/completions` |
 | Keys / catálogo | HTTPRoute `maas-api-route` (RHOAI, no Git) | `/maas-api`, `/v1/models` |
 | GitOps UI | Route del operador | `openshift-gitops-server-openshift-gitops.apps.cluster-zd9hr…` |
+| Caché semántico | Route `semantic-cache` | `semantic-cache-rhoai-semantic-cache.apps.<cluster>/v1/chat/completions` |
 
 Comprobación sin secretos: `./hack/argocd-sync-report.sh`. Probe MaaS: `./scripts/probe-maas.sh`.
 
@@ -443,7 +469,7 @@ rhoai-gitops/
 └── scripts/probe-maas.sh
 ```
 
-Cambio de remoto: sustituir `https://github.com/abelluque/rhoai-gitops.git` en `bootstrap/*-root-app.yaml`, `clusters/*/apps/appproject.yaml` y todas las Applications hijas. `targetRevision` por defecto: `main`.
+Cambio de remoto: sustituir `https://github.com/abelluque/rhoai-gitops.git` en `bootstrap/*-root-app.yaml`, `clusters/*/apps/appproject.yaml` y todas las Applications hijas. En este branch las raíces y `semantic-cache` usan `semantic-cache-demo-platform`. Las hijas de laboratorio siguen en `rhoai-maas-demo-platform` y las de producción en `main`.
 
 ---
 
@@ -457,3 +483,4 @@ Cambio de remoto: sustituir `https://github.com/abelluque/rhoai-gitops.git` en `
 6. **ModelRegistry CR en wave 5.** Separado de `platform-addons` para no hacer dry-run contra un CRD inexistente. Spec: `kubeRBACProxy: {}` (CEL de RHOAI 3.4 prohíbe oauthProxy + kubeRBACProxy).
 7. **Hostname lab.** Actualizar Gateway y Route en `components/gateway-api` cuando el sandbox OpenTLC cambie (`6f7dh` → `zd9hr`).
 8. **Day-0 prod.** Labels/taints GPU, `ntnx-secret`, `nfsServerName`, `maas-db-config`, `hf-token` y placeholders MySQL/MinIO **antes** de que la wave 5/6 reconcilie.
+9. **Caché semántico delante de MaaS.** La Route `semantic-cache` no reemplaza el Gateway. Un fallo reenvía al host MaaS del overlay y Authorino sigue cobrando la key. La selectividad es por modelo en `policy.yaml`, no por verbo HTTP. Las Applications raíz de este branch leen el app-of-apps en `semantic-cache-demo-platform`; el resto de las hijas conservan su `targetRevision` anterior.

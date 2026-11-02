@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: rhoai-semantic-cache
+resources:
+  - namespace.yaml
+  - redis.yaml
+  - embed.yaml
+  - cache.yaml
+  - networkpolicy.yaml
+configMapGenerator:
+  - name: semantic-cache-src
+    files:
+      - app.py=src/app.py
+      - requirements.txt=src/requirements.txt
+  - name: semantic-cache-policy
+    files:
+      - policy.yaml=policy.yaml
+generatorOptions:
+  disableNameSuffixHash: true

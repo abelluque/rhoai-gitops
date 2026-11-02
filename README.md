@@ -9,7 +9,7 @@ Los manifiestos Kustomize versionados aquí describen el estado deseado. No es n
 ## Propósito
 
 - Declarar Applications de OpenShift GitOps, un `AppProject` y overlays Kustomize por cluster.
-- Instalar y configurar la pila de plataforma (cert-manager, observabilidad, GitOps, Pipelines, Model Registry), Red Hat Connectivity Link, Gateway API, OpenShift AI 3.4, LLMInferenceServices y suscripciones MaaS.
+- Instalar y configurar la pila de plataforma (cert-manager, observabilidad, GitOps, Pipelines, Model Registry), Red Hat Connectivity Link, Gateway API, OpenShift AI 3.4, LLMInferenceServices, suscripciones MaaS y un caché semántico de prompts y respuestas.
 - Separar el laboratorio OpenTLC de la producción `ocpai-prd-mtz` sin compartir valores de hardware, almacenamiento ni modelos.
 
 ## Estructura del repositorio
@@ -95,6 +95,8 @@ flowchart TB
   end
 
   apps --> router
+  apps -->|"repetidos / paráfrasis"| cache["semantic-cache (Redis + embeddings)"]
+  cache --> gw
   router --> gw
   gw --> rhcl
   rhcl --> authorino
@@ -109,7 +111,7 @@ flowchart TB
   nvidia --> prdModels
 ```
 
-El tráfico de clientes alcanza el **OpenShift Router**, que expone el Gateway MaaS (`maas.apps.<cluster>.<baseDomain>`). El Gateway (`openshift.io/gateway-controller/v1`) envía las peticiones a **RHCL / Authorino** y a **maas-api**. Las inferencias se atienden en `LLMInferenceService`. OpenShift GitOps reconcilia operadores y operandos. El Model Registry persiste metadatos en MySQL y artefactos en MinIO.
+El tráfico de clientes alcanza el **OpenShift Router**, que expone el Gateway MaaS (`maas.apps.<cluster>.<baseDomain>`). El Gateway (`openshift.io/gateway-controller/v1`) envía las peticiones a **RHCL / Authorino** y a **maas-api**. Las inferencias se atienden en `LLMInferenceService`. Los clientes que quieran evitar una llamada repetida usan la Route `semantic-cache` en el namespace `rhoai-semantic-cache`: Redis responde un prompt igual o parecido y, si no hay acierto, reenvía al Gateway. OpenShift GitOps reconcilia operadores y operandos. El Model Registry persiste metadatos en MySQL y artefactos en MinIO.
 
 ## Gateway API: no instalar Service Mesh 3
 
@@ -139,6 +141,7 @@ Argo CD aplica las Applications hijas según `argocd.argoproj.io/sync-wave`. Los
 | 5 | `model-registry-cr` | `rhoai-model-registries` | Sí | Sí (ModelRegistry CR tras las CRD del operador) |
 | 6 | Modelos (`llmisvc-*`) | `ai-models` | `llmisvc-granite` (CPU) | `llmisvc-granite-8b`, `llmisvc-qwen25-coder-32b`, `llmisvc-deepseek-coder-33b` |
 | 7 | `maas-subscriptions` | `models-as-a-service` | Granite 2B | Granite 8B (free); Qwen y DeepSeek (premium) |
+| 7 | `semantic-cache` | `rhoai-semantic-cache` | Granite 2B (umbral 0.25) | Qwen y DeepSeek (umbral 0.10); Granite 8B apagado |
 
 `CreateNamespace=true` y `ServerSideApply=true` están habilitados en las Applications hijas. `prune: false` evita borrar Namespaces de plataforma si una Application se desincroniza.
 

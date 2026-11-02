@@ -2,7 +2,9 @@
 # application-controller can reconcile privileged namespaces:
 #   oc apply -f bootstrap/gitops-controller-cluster-admin.yaml
 #   oc apply -f bootstrap/opentlc-root-app.yaml
-# Then Argo CD syncs clusters/opentlc/apps (the app-of-apps).
+# Then Argo CD syncs clusters/opentlc/apps (the app-of-apps) from
+# semantic-cache-demo-platform. Existing child apps keep targetRevision
+# rhoai-maas-demo-platform. semantic-cache tracks this branch.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -14,7 +16,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/abelluque/rhoai-gitops.git
-    targetRevision: rhoai-maas-demo-platform
+    targetRevision: semantic-cache-demo-platform
     path: clusters/opentlc/apps
   destination:
     server: https://kubernetes.default.svc
