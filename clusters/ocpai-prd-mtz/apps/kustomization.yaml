@@ -21,5 +21,6 @@ resources:
   - llmisvc-qwen25-72b.yaml
   - maas-subscriptions.yaml
   - trustyai-guardrails.yaml
+  - semantic-cache.yaml
   - homologacion-tenants.yaml
   - homologacion-pipeline.yaml

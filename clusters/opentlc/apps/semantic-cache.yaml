@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: semantic-cache
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: rhoai-maas
+    rhoai.example.com/cluster: opentlc
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+spec:
+  project: rhoai
+  source:
+    repoURL: https://github.com/abelluque/rhoai-gitops.git
+    targetRevision: semantic-cache
+    path: components/semantic-cache/overlays/opentlc
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rhoai-semantic-cache
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 20
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m

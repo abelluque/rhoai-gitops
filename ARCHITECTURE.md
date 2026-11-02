@@ -160,6 +160,8 @@ El control es por `LLMInferenceService`: un endpoint y un caso de uso (`opendata
 
 En un acierto baja el prefill. La generación de los tokens nuevos sigue en el modelo. La métrica documentada es `sum(rate(vllm:prefix_cache_hits_total[5m])) / sum(rate(vllm:prefix_cache_queries_total[5m]))`.
 
+En el branch `semantic-cache` hay, además, un caché semántico de respuestas delante de MaaS. Redis guarda el embedding del prompt y la respuesta; un prompt parecido se contesta sin llamar al modelo. Las reglas por endpoint están en `components/semantic-cache/base/policy.yaml` y el funcionamiento en [components/semantic-cache/README.md](components/semantic-cache/README.md). No incluye el router ni los agentes del quickstart de Redis.
+
 Gestión de keys: `/maas-api` y `/v1/models` → `maas-api-route` → `maas-api:8443` (AuthPolicy propia; TokenReview OpenShift si el Bearer no es `sk-oai-`).
 
 El dashboard RHOAI usa Gateway `data-science-gateway`, no el Gateway MaaS. Ese Gateway lo crea el operador RHOAI, no un overlay de este repo.

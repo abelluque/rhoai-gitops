@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semantic-cache
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: install
+          env:
+            - name: HTTP_PROXY
+              value: http://10.214.130.110:80
+            - name: HTTPS_PROXY
+              value: http://10.214.130.110:80
+            - name: NO_PROXY
+              value: 127.0.0.1,localhost,.intranet.local,.svc,.cluster.local
+      containers:
+        - name: cache
+          env:
+            - name: MAAS_GATEWAY_HOST
+              value: maas.apps.ocpai-prd-mtz.intranet.local
+            - name: MAAS_TLS_VERIFY
+              value: "true"
+            - name: HTTP_PROXY
+              value: http://10.214.130.110:80
+            - name: HTTPS_PROXY
+              value: http://10.214.130.110:80
+            - name: NO_PROXY
+              value: 127.0.0.1,localhost,.intranet.local,.svc,.cluster.local
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semantic-cache-embed
+spec:
+  template:
+    spec:
+      containers:
+        - name: embed
+          env:
+            - name: HTTP_PROXY
+              value: http://10.214.130.110:80
+            - name: HTTPS_PROXY
+              value: http://10.214.130.110:80
+            - name: NO_PROXY
+              value: 127.0.0.1,localhost,.intranet.local,.svc,.cluster.local

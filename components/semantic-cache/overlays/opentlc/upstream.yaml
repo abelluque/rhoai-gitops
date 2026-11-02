@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semantic-cache
+spec:
+  template:
+    spec:
+      containers:
+        - name: cache
+          env:
+            - name: MAAS_GATEWAY_HOST
+              value: maas.apps.cluster-6f7dh.6f7dh.sandbox3519.opentlc.com
+            - name: MAAS_TLS_VERIFY
+              value: "false"
