@@ -15,6 +15,7 @@ metadata:
     app.kubernetes.io/version: "3.3.1"
     opendatahub.io/dashboard: "true"
     opendatahub.io/genai-asset: "true"
+    rhoai.io/prefix-cache: enabled
   name: qwen25-coder-32b
 spec:
   model:
@@ -29,7 +30,23 @@ spec:
         - name: maas-default-gateway
           namespace: openshift-ingress
     route: {}
-    scheduler: {}
+    # RHOAI 3.4: prefix-cache-scorer routes repeated prefixes to one replica.
+    # https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/deploy_models_using_distributed_inference_with_llm-d/configuring-llm-scheduler
+    scheduler:
+      config:
+        inline:
+          apiVersion: inference.networking.x-k8s.io/v1alpha1
+          kind: EndpointPickerConfig
+          plugins:
+            - type: prefix-cache-scorer
+            - type: queue-scorer
+          schedulingProfiles:
+            - name: default
+              plugins:
+                - pluginRef: queue-scorer
+                  weight: 2
+                - pluginRef: prefix-cache-scorer
+                  weight: 3
   template:
     volumes:
       - name: kserve-provision-location
@@ -82,7 +99,7 @@ spec:
         env:
           - name: VLLM_ADDITIONAL_ARGS
             value: >-
-              --max-model-len=32768 --tensor-parallel-size=1 --pipeline-parallel-size=1
+              --max-model-len=32768 --tensor-parallel-size=1 --pipeline-parallel-size=1 --enable-prefix-caching
         envFrom:
             - secretRef:
                 name: hf-token

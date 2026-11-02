@@ -137,7 +137,26 @@ Cada ISVC declara `router.gateway.refs` hacia `maas-default-gateway` en `openshi
 3. WASM Kuadrant (AuthPolicy + TokenRateLimitPolicy) en el sidecar **antes** del routing.
 4. Authorino: POST `maas-api:8443/internal/v1/api-keys/validate` y `/internal/v1/subscriptions/select`.
 5. Limitador: cuota por `auth.identity.userid` si coincide `selected_subscription_key`.
-6. HTTPRoute reescribe a `/v1/chat/completions` → InferencePool :8000 → scheduler llm-d → pod vLLM.
+6. HTTPRoute reescribe a `/v1/chat/completions` → InferencePool :8000 → scheduler llm-d → pod vLLM. Si el `LLMInferenceService` tiene la caché de prefijos activa, el scheduler elige la réplica que ya calculó ese prefijo y vLLM no rehace ese prefill.
+
+### 2.6 Caché de prefijos por endpoint
+
+OpenShift AI 3.4 no documenta un caché del AI Gateway que guarde la respuesta HTTP y la devuelva sin pasar por el modelo. El mecanismo soportado para solicitudes idénticas o repetitivas —autocompletado y asistencia recurrente— es la caché de prefijos de vLLM junto con el scheduler llm-d ([Configuring scheduler settings](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/deploy_models_using_distributed_inference_with_llm-d/configuring-llm-scheduler), [vLLM arguments](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/deploy_models_using_distributed_inference_with_llm-d/ref-vllm-arguments_distributed-inference)):
+
+- `--enable-prefix-caching` reutiliza los bloques KV del prefijo ya calculado.
+- `prefix-cache-scorer` con peso 3 y `queue-scorer` con peso 2 envían los prefijos parecidos a la misma réplica.
+
+El control es por `LLMInferenceService`: un endpoint y un caso de uso (`opendatahub.io/genai-use-case`). La plataforma no documenta un interruptor por verbo HTTP ni por header. La etiqueta `rhoai.io/prefix-cache` deja el estado explícito, porque el scheduler por defecto de la plataforma ya prioriza la caché: apagarla exige un perfil que solo tenga `queue-scorer` y el argumento `--no-enable-prefix-caching`.
+
+| Endpoint | Caso de uso | `rhoai.io/prefix-cache` |
+| --- | --- | --- |
+| `qwen25-coder-32b` | code, autocompletado | enabled |
+| `deepseek-coder-33b` | code, autocompletado | enabled |
+| `granite-3-1-2b-instruct` | chat de laboratorio, asistencia recurrente | enabled |
+| `granite-3-0-8b-instruct` | chat general, también en `ai-models-dev` | disabled |
+| `qwen25-72b` | chat general | disabled |
+
+En un acierto baja el prefill. La generación de los tokens nuevos sigue en el modelo. La métrica documentada es `sum(rate(vllm:prefix_cache_hits_total[5m])) / sum(rate(vllm:prefix_cache_queries_total[5m]))`.
 
 Gestión de keys: `/maas-api` y `/v1/models` → `maas-api-route` → `maas-api:8443` (AuthPolicy propia; TokenReview OpenShift si el Bearer no es `sk-oai-`).
 

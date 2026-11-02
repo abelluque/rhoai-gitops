@@ -15,6 +15,7 @@ metadata:
     app.kubernetes.io/version: "3.3.1"
     opendatahub.io/dashboard: "true"
     opendatahub.io/genai-asset: "true"
+    rhoai.io/prefix-cache: disabled
   name: qwen25-72b
 spec:
   model:
@@ -29,7 +30,18 @@ spec:
         - name: maas-default-gateway
           namespace: openshift-ingress
     route: {}
-    scheduler: {}
+    scheduler:
+      config:
+        inline:
+          apiVersion: inference.networking.x-k8s.io/v1alpha1
+          kind: EndpointPickerConfig
+          plugins:
+            - type: queue-scorer
+          schedulingProfiles:
+            - name: default
+              plugins:
+                - pluginRef: queue-scorer
+                  weight: 2
   template:
     volumes:
       - name: kserve-provision-location
@@ -82,7 +94,7 @@ spec:
         env:
           - name: VLLM_ADDITIONAL_ARGS
             value: >-
-              --max-model-len=32768 --tensor-parallel-size=2 --pipeline-parallel-size=1
+              --max-model-len=32768 --tensor-parallel-size=2 --pipeline-parallel-size=1 --no-enable-prefix-caching
         envFrom:
             - secretRef:
                 name: hf-token

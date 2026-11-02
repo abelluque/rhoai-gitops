@@ -15,6 +15,7 @@ metadata:
     app.kubernetes.io/version: "3.3.1"
     opendatahub.io/dashboard: "true"
     opendatahub.io/genai-asset: "true"
+    rhoai.io/prefix-cache: enabled
   name: granite-3-1-2b-instruct
 spec:
   model:
@@ -27,7 +28,21 @@ spec:
         - name: maas-default-gateway
           namespace: openshift-ingress
     route: {}
-    scheduler: {}
+    scheduler:
+      config:
+        inline:
+          apiVersion: inference.networking.x-k8s.io/v1alpha1
+          kind: EndpointPickerConfig
+          plugins:
+            - type: prefix-cache-scorer
+            - type: queue-scorer
+          schedulingProfiles:
+            - name: default
+              plugins:
+                - pluginRef: queue-scorer
+                  weight: 2
+                - pluginRef: prefix-cache-scorer
+                  weight: 3
   template:
     containers:
       - name: main
@@ -35,7 +50,7 @@ spec:
         env:
           - name: VLLM_ADDITIONAL_ARGS
             value: >-
-              --max-model-len=1024 --max-num-seqs=1 --enforce-eager --dtype=float32
+              --max-model-len=1024 --max-num-seqs=1 --enforce-eager --dtype=float32 --enable-prefix-caching
           - name: VLLM_CPU_KVCACHE_SPACE
             value: "4"
           - name: VLLM_CPU_OMP_THREADS_BIND
